@@ -3,7 +3,7 @@ shout - terminal digits
 
 ![shout example 1](doc/shout1.png?raw=true)
 
-![shout example 2](doc/shout1.png?raw=true)
+![shout example 2](doc/shout2.png?raw=true)
 
 Install on Linux
 ----------------

@@ -27,8 +27,8 @@ $(PROGNAME).o: $(SRC)/$(PROGNAME).c
 $(PROGNAME): $(SRC)/digits.o $(SRC)/$(PROGNAME).o
 	$(CC) $(SRC)/digits.o $(SRC)/$(PROGNAME).o -o $(PROGNAME) $(CFLAGS)
 
-manpage: $(DOC)/shout.man.asciidoc
-	a2x --doctype manpage --format manpage $(DOC)/shout.man.asciidoc
+manpage: $(DOC)/$(PROGNAME).man.asciidoc
+	a2x --doctype manpage --format manpage $(DOC)/$(PROGNAME).man.asciidoc
 
 install: $(PROGNAME)
 	install -m755 $(PROGNAME) $(DESTDIR)$(INSTALLDIR)/

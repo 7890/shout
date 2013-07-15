@@ -4,10 +4,11 @@
 
 #include "digits.h"
 
-//tb/130701/130703/130705
+//tb/130701/130703/130705//130715
 /*
-* output large colored digits in terminal
-* suports partial highlight []/{}/()
+* output large colored alphanumeric characters in terminal
+* supports partial highlight  \[,\{,\(
+# supports inverse colors \<
 * some terminals will not display output correctly
 * output is borked if wider than terminal
 * only single line supported
@@ -47,7 +48,7 @@
 * fg 47 (light gray)
 */
 
-static double version=130705.1;
+static double version=130715.1;
 
 int black=40;
 int lgray=47;
@@ -56,6 +57,13 @@ int green=42;
 int blue=44;
 
 int invertColors=0;
+
+int escapeMode=-1;
+
+void _nothing(int line)
+{
+	printf("here");
+}
 
 int main(int argc, char **argv)
 {
@@ -92,17 +100,19 @@ int main(int argc, char **argv)
 
 	if(strcmp(argv[1],"--help")==0 || strcmp(argv[1],"-h")==0)
 	{
-		printf("syntax: shout '<string>' (<clear> (<cursor off> (<invert colors>)))\n\n");
-		printf("supported characters for string: 0123456789 +-=_.,:;!?/*\n\n");
+		printf("syntax: shout '<string>' (<clear> (<cursor off>))\n\n");
+		printf("supported characters for string:\n");
+		printf("0123456789+-=_.,:;!?/\\[](){}abcdefghijklmnopqrstuvwxyz* (and space)\n\n");
 		printf("if <clear> is present and equal '1', screen will be cleared.\n");
 		printf("if <cursor off> is present and equal '1', cursor will be hidden.\n");
-		printf("if <invert colors> is present and equal '1', bg/fg color scheme will be inverted.\n\n");
-		printf("<invert colors> is global and can not be combined with partial inverting with <>.\n");
-		printf("to highlight a part of the string, enclose in [] (red), {} (green) or () (blue).\n");
-		printf("highlights can not be nested. to invert colors, enclose in <>.\n\n");
+		printf("to highlight a part of the string, prefix or enclose with \\[ (red) \\], \\{ (green) \\} or \\( (blue) \\). ");
+		printf("to invert colors, enclose in \\<\\>.\n");
+		printf("the control chars [,{,( or < must be escaped with backslash (\\).\n\n");
 		printf("examples: shout 1\n"); 
-		printf("          shout '123' 1; shout '[1]{2}:(3)!' 0 0 1\n");
-		printf("          shout '1<2>3<[4]?(5)>'\n");
+		printf("          shout '123' 1; shout '\\[1\\{2\\}:\\(3\\)!'\n");
+		printf("          shout '1\\<2\\>3\\<\\[4\\]?\\(5\\>'\n");
+		printf("          shout '/\\\\[{('\n");
+		printf("          shout '\\<a\\[b\\(c'\n");
 		return(0);
 	}
 
@@ -123,52 +133,108 @@ int main(int argc, char **argv)
 		printf("\e[?25h");
 	}
 
-	if(argc>4 && argv[4][0]=='1')
-	{
-		//invert colors
-		invertColors=1;
-		BG_COL=lgray;
-		FG_COL=black;
-	}
-
-	//for every line of a char
+	//for every line of a big 'char'
 	for(int c=1;c<=8;c++)
 	{
+		//reset escaping
+		escapeMode=0;
+
+		//reset colors
+		BG_COL=black;FG_COL=lgray;
+
 		//for every char of input
 		for(int i=0;argv[1][i]!='\0';i++)
 		{
-			//printf("%c\n",argv[1][i]);
-			//start highlight
-
-			if(argv[1][i]=='[')
+			//backslash used as escape character
+			if(argv[1][i]=='\\' && escapeMode==0)
 			{
+				escapeMode=1;
+			}
+			else if(argv[1][i]=='\\')
+			{
+				escapeMode=0;
+				_backslash(c);
+			}
+			// \[ rec
+			else if(argv[1][i]=='[' && escapeMode==1)
+			{
+				escapeMode=0;
 				if(invertColors==0){BG_COL=red;FG_COL=lgray;}
 				else{BG_COL=lgray;FG_COL=red;}
 			}
-			else if(argv[1][i]=='{')
+			// \{ green
+			else if(argv[1][i]=='{' && escapeMode==1)
 			{
+				escapeMode=0;
 				if(invertColors==0){BG_COL=green;FG_COL=lgray;}
 				else{BG_COL=lgray;FG_COL=green;}
 			}
-			else if(argv[1][i]=='(')
+			// \( blue
+			else if(argv[1][i]=='(' && escapeMode==1)
 			{
+				escapeMode=0;
 				if(invertColors==0){BG_COL=blue;FG_COL=lgray;}
 				else{BG_COL=lgray;FG_COL=blue;}
 			}
-			else if(argv[1][i]==']' || argv[1][i]=='}' || argv[1][i]==')')
+			// \] \} \) end color
+			else if( (argv[1][i]==']' || argv[1][i]=='}' || argv[1][i]==')') 
+				&& escapeMode==1)
 			{
+				escapeMode=0;
 				if(invertColors==0){BG_COL=black;FG_COL=lgray;}
 				else{BG_COL=lgray;FG_COL=black;}
 			}
-			else if(argv[1][i]=='<')
+			// \< invert
+			else if(argv[1][i]=='<'  && escapeMode==1)
 			{
+				escapeMode=0;
 				invertColors=1;
 				BG_COL=lgray;FG_COL=black;
 			}
-			else if(argv[1][i]=='>')
+			// \> end invert
+			else if(argv[1][i]=='>' && escapeMode==1)
 			{
+				escapeMode=0;
 				invertColors=0;
 				BG_COL=black;FG_COL=lgray;
+			}
+			// \a
+			else if(argv[1][i]=='a' && escapeMode==1)
+			{
+				escapeMode=0;
+				_line_middle_horizontal(c);
+			}
+			// \b
+			else if(argv[1][i]=='b' && escapeMode==1)
+			{
+				escapeMode=0;
+				_line_bottom(c);
+			}
+
+			//unescaped
+			else if(argv[1][i]=='[')
+			{
+				_lbbrace(c);
+			}
+			else if(argv[1][i]==']')
+			{
+				_rbbrace(c);
+			}
+			else if(argv[1][i]=='{')
+			{
+				_lcbrace(c);
+			}
+			else if(argv[1][i]=='}')
+			{
+				_rcbrace(c);
+			}
+			else if(argv[1][i]=='(')
+			{
+				_lbrace(c);
+			}
+			else if(argv[1][i]==')')
+			{
+				_rbrace(c);
 			}
 			else if(argv[1][i]=='0')
 			{
@@ -236,7 +302,7 @@ int main(int argc, char **argv)
 			}
 			else if(argv[1][i]=='/')
 			{
-				_division(c);
+				_slash(c);
 			}
 			else if(argv[1][i]=='*')
 			{
@@ -262,21 +328,116 @@ int main(int argc, char **argv)
 			{
 				_space(c);
 			}
-/*
-			else if(argv[1][i]=='(')
+			else if(argv[1][i]=='a')
 			{
-				_lbrace(c);
+				_a(c);
 			}
-			else if(argv[1][i]==')')
+			else if(argv[1][i]=='b')
 			{
-				_rbrace(c);
+				_b(c);
 			}
-*/
+			else if(argv[1][i]=='c')
+			{
+				_c(c);
+			}
+			else if(argv[1][i]=='d')
+			{
+				_d(c);
+			}
+			else if(argv[1][i]=='e')
+			{
+				_e(c);
+			}
+			else if(argv[1][i]=='f')
+			{
+				_f(c);
+			}
+			else if(argv[1][i]=='g')
+			{
+				_g(c);
+			}
+			else if(argv[1][i]=='h')
+			{
+				_h(c);
+			}
+			else if(argv[1][i]=='i')
+			{
+				_i(c);
+			}
+			else if(argv[1][i]=='j')
+			{
+				_j(c);
+			}
+			else if(argv[1][i]=='k')
+			{
+				_k(c);
+			}
+			else if(argv[1][i]=='l')
+			{
+				_l(c);
+			}
+			else if(argv[1][i]=='m')
+			{
+				_m(c);
+			}
+			else if(argv[1][i]=='n')
+			{
+				_n(c);
+			}
+			else if(argv[1][i]=='o')
+			{
+				_o(c);
+			}
+			else if(argv[1][i]=='p')
+			{
+				_p(c);
+			}
+			else if(argv[1][i]=='q')
+			{
+				_q(c);
+			}
+			else if(argv[1][i]=='r')
+			{
+				_r(c);
+			}
+			else if(argv[1][i]=='s')
+			{
+				_s(c);
+			}
+			else if(argv[1][i]=='t')
+			{
+				_t(c);
+			}
+			else if(argv[1][i]=='u')
+			{
+				_u(c);
+			}
+			else if(argv[1][i]=='v')
+			{
+				_v(c);
+			}
+			else if(argv[1][i]=='w')
+			{
+				_w(c);
+			}
+			else if(argv[1][i]=='x')
+			{
+				_x(c);
+			}
+			else if(argv[1][i]=='y')
+			{
+				_y(c);
+			}
+			else if(argv[1][i]=='z')
+			{
+				_z(c);
+			}
 			else
 			{
 				printf("\nunknown char: %c\n",argv[1][i]);
 				return(1);
 			}
+
 		}//end for every char of input
 
 		//end of lined up char parts
@@ -285,4 +446,3 @@ int main(int argc, char **argv)
 
 	return(0);
 } //end shout.c
-

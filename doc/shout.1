@@ -2,12 +2,12 @@
 .\"     Title: shout
 .\"    Author: [see the "AUTHOR" section]
 .\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
-.\"      Date: 07/05/2013
+.\"      Date: 07/15/2013
 .\"    Manual: \ \&
 .\"    Source: \ \&
 .\"  Language: English
 .\"
-.TH "SHOUT" "1" "07/05/2013" "\ \&" "\ \&"
+.TH "SHOUT" "1" "07/15/2013" "\ \&" "\ \&"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,33 +28,31 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-shout \- prints large digits to terminal
+shout \- prints large alphanumeric characters to terminal
 .SH "SYNOPSIS"
 .sp
-\fBshout\fR [\-h | \-\-help] | \fIstring\fR [\fIclear_screen\fR [\fIcursor_off\fR [\fIinvert_color\fR]]]
+\fBshout\fR [\-h | \-\-help] | \fIstring\fR [\fIclear_screen\fR [\fIcursor_off\fR]]
 .SH "DESCRIPTION"
 .sp
 shout takes a \fBstring\fR argument and prints it to the terminal using color escape sequences (VT100 compatible)\&.
 .sp
 The following characters can be printed:
 .sp
-\fB0123456789 +\-=_\&.,:;!?/\fR*
+\fB0123456789+\-=_\&.,:;!?/\e[](){}abcdefghijklmnopqrstuvwxyz\fR* (and space)
 .sp
-The following characters are interpreted for highlighting or inverting:
+Prefixed with the escape character \fB\e\fR (backslash), the following characters or \fItags\fR are interpreted for highlighting or inverting:
 .sp
-\fB[]\fR: background red
+\fB\e[\&...\e]\fR: background red
 .sp
-\fB{}\fR: background green
+\fB\e{\&...\e}\fR: background green
 .sp
-\fB()\fR: background blue
+\fB\e(\&...\e)\fR: background blue
 .sp
-Any input enclosed with these characters are highlighted\&. Highlighting can not be nested\&.
+\fB\e<\&...\e>\fR: invert the foreground/background color scheme
 .sp
-\fB<>\fR: Invert the foreground/background color scheme
+Any input enclosed with these characters is highlighted\&. Highlighting can not be nested\&. On closing the hightlight, the color scheme reverts to standard (light gray on black)\&. Simplified notation is possible by using only the start tag, see examples\&. Strings enclosed in \e<\e> can contain highlighted parts\&.
 .sp
-Strings enclosed in <> can contain highlighted parts\&.
-.sp
-If the terminal width is not wide enough for displaying the input on one line, it will look weird\&.
+If the terminal width is not wide enough for displaying the input on one line, the output will look weird\&.
 .SH "OPTIONS"
 .PP
 \fB\-h, \-\-help\fR
@@ -71,11 +69,6 @@ If equal 1, the screen will be cleared and cursor put to top left before output 
 .RS 4
 If equal 1, the cursor will be hidden (stays hidden after program exits)
 .RE
-.PP
-\fBinvert_color\fR
-.RS 4
-If equal 1, the colors will be inverted globally\&. This can not be combined with <> partial inversions
-.RE
 .SH "EXIT STATUS"
 .PP
 \fB0\fR
@@ -91,32 +84,32 @@ No input string given
 .PP
 Simple shout
 .RS 4
-$ shout 123
+$ shout "123 abc"
 .RE
 .PP
 Use special symbols
 .RS 4
-$ shout ",;\&.:+\-?"
+$ shout "+\-?()[]{}"
 .RE
 .PP
 Highlight part in string
 .RS 4
-$ shout "1[2]3"
+$ shout "1\e[2\e]3"
 .RE
 .PP
-Colorful
+Colorful (simplified notation, no closing tags)
 .RS 4
-$ shout "[ ]{ }( )"
+$ shout "\e[ \e{ \e( "
 .RE
 .PP
 Partial color inversion in string
 .RS 4
-$ shout "123<4567>"
+$ shout "123\e<4567"
 .RE
 .PP
 Highlighted parts inside inversion
 .RS 4
-$ shout "[5](6) <[5](6)>"
+$ shout "\e[5\e(6\e) \e<\e[5\e(6\e>"
 .RE
 .PP
 Using options, clear screen before print
@@ -127,16 +120,6 @@ $ shout "123" 1
 Using options, hide cursor
 .RS 4
 $ shout "123" 0 1
-.RE
-.PP
-Using options, global color inversion
-.RS 4
-$ shout "123" 0 0 1
-.RE
-.PP
-Using options, all
-.RS 4
-$ shout "123" 1 1 1
 .RE
 .PP
 Multiline output

@@ -21,57 +21,53 @@ man page
 --------
 
 ```
-SHOUT(1)                                                              SHOUT(1)
+SHOUT(1)                                                                              SHOUT(1)
 
 
 
 NAME
-       shout - prints large digits to terminal
+       shout - prints large alphanumeric characters to terminal
 
 SYNOPSIS
-       shout [-h | --help] | string [clear_screen [cursor_off [invert_color]]]
+       shout [-h | --help] | string [clear_screen [cursor_off]]
 
 DESCRIPTION
-       shout takes a string argument and prints it to the terminal using color
-       escape sequences (VT100 compatible).
+       shout takes a string argument and prints it to the terminal using color escape
+       sequences (VT100 compatible).
 
        The following characters can be printed:
 
-       0123456789 +-=_.,:;!?/*
+       0123456789+-=_.,:;!?/\[](){}abcdefghijklmnopqrstuvwxyz* (and space)
 
-       The following characters are interpreted for highlighting or inverting:
+       Prefixed with the escape character \ (backslash), the following characters or tags are
+       interpreted for highlighting or inverting:
 
-       []: background red
+       \[...\]: background red
 
-       {}: background green
+       \{...\}: background green
 
-       (): background blue
+       \(...\): background blue
 
-       Any input enclosed with these characters are highlighted. Highlighting
-       can not be nested.
+       \<...\>: invert the foreground/background color scheme
 
-       <>: Invert the foreground/background color scheme
+       Any input enclosed with these characters is highlighted. Highlighting can not be
+       nested. On closing the hightlight, the color scheme reverts to standard (light gray on
+       black). Simplified notation is possible by using only the start tag, see examples.
+       Strings enclosed in \<\> can contain highlighted parts.
 
-       Strings enclosed in <> can contain highlighted parts.
-
-       If the terminal width is not wide enough for displaying the input on
-       one line, it will look weird.
+       If the terminal width is not wide enough for displaying the input on one line, the
+       output will look weird.
 
 OPTIONS
        -h, --help
            Show help (if given as only argument)
 
        clear_screen
-           If equal 1, the screen will be cleared and cursor put to top left
-           before output takes place
+           If equal 1, the screen will be cleared and cursor put to top left before output
+           takes place
 
        cursor_off
-           If equal 1, the cursor will be hidden (stays hidden after program
-           exits)
-
-       invert_color
-           If equal 1, the colors will be inverted globally. This can not be
-           combined with <> partial inversions
+           If equal 1, the cursor will be hidden (stays hidden after program exits)
 
 EXIT STATUS
        0
@@ -82,34 +78,28 @@ EXIT STATUS
 
 EXAMPLES
        Simple shout
-           $ shout 123
+           $ shout "123 abc"
 
        Use special symbols
-           $ shout ",;.:+-?"
+           $ shout "+-?()[]{}"
 
        Highlight part in string
-           $ shout "1[2]3"
+           $ shout "1\[2\]3"
 
-       Colorful
-           $ shout "[ ]{ }( )"
+       Colorful (simplified notation, no closing tags)
+           $ shout "\[ \{ \( "
 
        Partial color inversion in string
-           $ shout "123<4567>"
+           $ shout "123\<4567"
 
        Highlighted parts inside inversion
-           $ shout "[5](6) <[5](6)>"
+           $ shout "\[5\(6\) \<\[5\(6\>"
 
        Using options, clear screen before print
            $ shout "123" 1
 
        Using options, hide cursor
            $ shout "123" 0 1
-
-       Using options, global color inversion
-           $ shout "123" 0 0 1
-
-       Using options, all
-           $ shout "123" 1 1 1
 
        Multiline output
            $ shout 123; shout 456
@@ -127,10 +117,10 @@ SEE ALSO
        osctermd(1)
 
 COPYING
-       Copyright (C) 2013 Thomas Brand. Free use of this software is granted
-       under the terms of the GNU General Public License (GPL).
+       Copyright (C) 2013 Thomas Brand. Free use of this software is granted under the terms
+       of the GNU General Public License (GPL).
 
 
 
-                                  07/05/2013                          SHOUT(1)
+                                          07/15/2013                                  SHOUT(1)
 ```

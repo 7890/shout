@@ -44,6 +44,10 @@ OPTIONS
 -------
 *-h, --help*::
 	Show help (if given as only argument)
+*-v, --version*::
+	Show version (if given as only argument)
+*-i, --info*::
+	Show info (if given as only argument)
 *clear_screen*::
 	If equal 1, the screen will be cleared and cursor put to top left 
 	before output takes place

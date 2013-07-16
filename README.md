@@ -1,9 +1,7 @@
-shout - terminal digits
-=======================
+shout - alphanumeric terminal chars
+===================================
 
-![shout example 1](doc/shout1.png?raw=true)
-
-![shout example 2](doc/shout2.png?raw=true)
+![shout example 1](doc/shout3.png?raw=true)
 
 Install on Linux
 ----------------
@@ -29,7 +27,8 @@ NAME
        shout - prints large alphanumeric characters to terminal
 
 SYNOPSIS
-       shout [-h | --help] | string [clear_screen [cursor_off]]
+       shout string [clear_screen [cursor_off]]
+       shout [-h | --help | -v | --version | -i | --info ] 
 
 DESCRIPTION
        shout takes a string argument and prints it to the terminal using color escape
@@ -58,9 +57,17 @@ DESCRIPTION
        If the terminal width is not wide enough for displaying the input on one line, the
        output will look weird.
 
+       shout version is 0.3
+
 OPTIONS
        -h, --help
            Show help (if given as only argument)
+
+       -v, --version
+           Show version (if given as only argument)
+
+       -i, --info
+           Show info (if given as only argument)
 
        clear_screen
            If equal 1, the screen will be cleared and cursor put to top left before output

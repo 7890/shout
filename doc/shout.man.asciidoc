@@ -38,6 +38,8 @@ Strings enclosed in \<\> can contain highlighted parts.
 If the terminal width is not wide enough for displaying the input on 
 one line, the output will look weird.
 
+shout version is 0.3
+
 OPTIONS
 -------
 *-h, --help*::

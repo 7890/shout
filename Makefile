@@ -10,6 +10,13 @@ PROGNAME ?= shout
 SRC=src
 DOC=doc
 
+#.deb package
+SRC_URL="https://github.com/7890/shout"
+MAINTAINER="tom@trellis.ch"
+LICENSE="GPL"
+VERSION=0
+RELEASE=3
+
 #gcc -c digits.c -o digits.o -std=gnu99;
 #gcc -c shout.c -o shout.o -std=gnu99;
 #gcc shout.o digits.o -o shout
@@ -29,17 +36,27 @@ $(PROGNAME): $(SRC)/digits.o $(SRC)/$(PROGNAME).o
 
 manpage: $(DOC)/$(PROGNAME).man.asciidoc
 	a2x --doctype manpage --format manpage $(DOC)/$(PROGNAME).man.asciidoc
+	gzip -9 -f $(DOC)/$(PROGNAME).1
+
+deb64: 
+	checkinstall -D --arch=amd64 --pkgsource=$(SRC_URL) --pkgversion=$(VERSION) --pkgrelease=$(RELEASE) \
+	--maintainer=$(MAINTAINER) --pkglicense=$(LICENSE) --pkggroup="shellutils" --install=no make install
+deb32: 
+	checkinstall -D --arch=i386 --pkgsource=$(SRC_URL) --pkgversion=$(VERSION) --pkgrelease=$(RELEASE) \
+	--maintainer=$(MAINTAINER) --pkglicense=$(LICENSE) --pkggroup="shellutils" --install=no make install
 
 install: $(PROGNAME)
+	mkdir -p $(DESTDIR)$(INSTALLDIR)/
+	mkdir -p $(DESTDIR)$(MANDIR)/
 	install -m755 $(PROGNAME) $(DESTDIR)$(INSTALLDIR)/
-	install -m644 $(DOC)/$(PROGNAME).1 $(DESTDIR)$(MANDIR)/
+	install -m644 $(DOC)/$(PROGNAME).1.gz $(DESTDIR)$(MANDIR)/
 
 uninstall:
 	rm -f $(DESTDIR)$(INSTALLDIR)/$(PROGNAME)
-	rm -f $(DESTDIR)$(MANDIR)/$(PROGNAME).1
+	rm -f $(DESTDIR)$(MANDIR)/$(PROGNAME).1.gz
 
 clean:
 	rm -f $(PROGNAME) $(SRC)/$(PROGNAME).o $(SRC)/digits.o 
-	#$(DOC)/$(PROGNAME).1
+	#$(DOC)/$(PROGNAME).1.gz
 
 .PHONY: clean all install uninstall

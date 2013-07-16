@@ -1,10 +1,30 @@
+/*
+shout.c
+part of shout
+Copyright (C) 2013 Thomas Brand
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "digits.h"
 
-//tb/130701/130703/130705//130715
+//tb/130701/130703/130705//130715/130716
 /*
 * output large colored alphanumeric characters in terminal
 * supports partial highlight  \[,\{,\(
@@ -48,7 +68,7 @@
 * fg 47 (light gray)
 */
 
-static double version=130715.1;
+static double version=0.3;
 
 int black=40;
 int lgray=47;
@@ -59,11 +79,6 @@ int blue=44;
 int invertColors=0;
 
 int escapeMode=-1;
-
-void _nothing(int line)
-{
-	printf("here");
-}
 
 int main(int argc, char **argv)
 {
@@ -98,6 +113,16 @@ int main(int argc, char **argv)
 		return(0);
 	}
 
+	if(strcmp(argv[1],"--info")==0 || strcmp(argv[1],"-i")==0)
+	{
+		printf("shout version %f, Copyright (C) 2013  Thomas Brand\n",version);
+		printf("shout comes with ABSOLUTELY NO WARRANTY;\n");
+		printf("This is free software, and you are welcome to redistribute it\n");
+		printf("under certain conditions; see COPYING for details.\n");
+		return(0);
+	}
+
+
 	if(strcmp(argv[1],"--help")==0 || strcmp(argv[1],"-h")==0)
 	{
 		printf("syntax: shout '<string>' (<clear> (<cursor off>))\n\n");
@@ -105,14 +130,17 @@ int main(int argc, char **argv)
 		printf("0123456789+-=_.,:;!?/\\[](){}abcdefghijklmnopqrstuvwxyz* (and space)\n\n");
 		printf("if <clear> is present and equal '1', screen will be cleared.\n");
 		printf("if <cursor off> is present and equal '1', cursor will be hidden.\n");
-		printf("to highlight a part of the string, prefix or enclose with \\[ (red) \\], \\{ (green) \\} or \\( (blue) \\). ");
+		printf("parts of a string can be highlighted by prefixing or enclosing it with\n");
+		printf("\\[ (red) \\], \\{ (green) \\} or \\( (blue) \\). ");
 		printf("to invert colors, enclose in \\<\\>.\n");
 		printf("the control chars [,{,( or < must be escaped with backslash (\\).\n\n");
 		printf("examples: shout 1\n"); 
 		printf("          shout '123' 1; shout '\\[1\\{2\\}:\\(3\\)!'\n");
 		printf("          shout '1\\<2\\>3\\<\\[4\\]?\\(5\\>'\n");
 		printf("          shout '/\\\\[{('\n");
-		printf("          shout '\\<a\\[b\\(c'\n");
+		printf("          shout '\\<a\\[b\\(c'\n\n");
+		printf("shout --version\n");
+		printf("shout --info\n");
 		return(0);
 	}
 

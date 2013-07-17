@@ -26,7 +26,7 @@ trap 'killall -9 osctermd; reset; exit' TERM INT
 osctermd 8899 &
 
 #generated with shout, dumped as base64 encoded string
-#(shout '4<2>(?)' 1; shout '[8]9{6}' 0 1) | gzip -9 - | base64 -
+#(shout '4\<2\>\(?\)' 1; shout '\[8\]9\{6\}' 0 1) | gzip -9 - | base64 -
 (base64 -d - | gzip -d -> $tmp) <<_EOF_
 H4sIAP643FECA+WVMRKAIAwEe75A4xOig0PpQyhtLPT/rVRWiBdzgzp2NxI1mwuJn32ahnHxKcjW
 +SQbTUWyCkzlaCACnur/UUr/drEczS8BMaM6LlDKcQFs8VBfIhQ4GFwvAltumlDg9HdY+YajjSVL

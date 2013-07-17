@@ -44,6 +44,9 @@ deb64:
 deb32: 
 	checkinstall -D --arch=i386 --pkgsource=$(SRC_URL) --pkgversion=$(VERSION) --pkgrelease=$(RELEASE) \
 	--maintainer=$(MAINTAINER) --pkglicense=$(LICENSE) --pkggroup="shellutils" --install=no make install
+debarmhf: 
+	checkinstall -D --arch=armhf --pkgsource=$(SRC_URL) --pkgversion=$(VERSION) --pkgrelease=$(RELEASE) \
+	--maintainer=$(MAINTAINER) --pkglicense=$(LICENSE) --pkggroup="shellutils" --install=no make install
 
 install: $(PROGNAME)
 	mkdir -p $(DESTDIR)$(INSTALLDIR)/

@@ -3,6 +3,7 @@
 CC ?= gcc
 CFLAGS ?= -Wall -std=c99
 PREFIX ?= /usr/local
+PREFIX_PACKAGES ?= /usr
 INSTALLDIR ?= $(PREFIX)/bin
 MANDIR ?= $(PREFIX)/share/man/man1
 PROGNAME ?= shout
@@ -15,7 +16,7 @@ SRC_URL="https://github.com/7890/shout"
 MAINTAINER="tom@trellis.ch"
 LICENSE="GPL"
 VERSION=0
-RELEASE=3
+RELEASE=5
 
 #gcc -c digits.c -o digits.o -std=gnu99;
 #gcc -c shout.c -o shout.o -std=gnu99;
@@ -40,13 +41,13 @@ manpage: $(DOC)/$(PROGNAME).man.asciidoc
 
 deb64: 
 	checkinstall -D --arch=amd64 --pkgname=$(PROGNAME) --pkgsource=$(SRC_URL) --pkgversion=$(VERSION) --pkgrelease=$(RELEASE) \
-	--maintainer=$(MAINTAINER) --pkglicense=$(LICENSE) --pkggroup="shellutils" --install=no make install
+	--maintainer=$(MAINTAINER) --pkglicense=$(LICENSE) --pkggroup="shellutils" --install=no make install PREFIX=$(PREFIX_PACKAGES)
 deb32: 
 	checkinstall -D --arch=i386 --pkgname=$(PROGNAME) --pkgsource=$(SRC_URL) --pkgversion=$(VERSION) --pkgrelease=$(RELEASE) \
-	--maintainer=$(MAINTAINER) --pkglicense=$(LICENSE) --pkggroup="shellutils" --install=no make install
+	--maintainer=$(MAINTAINER) --pkglicense=$(LICENSE) --pkggroup="shellutils" --install=no make install PREFIX=$(PREFIX_PACKAGES)
 debarmhf: 
 	checkinstall -D --arch=armhf --pkgname=$(PROGNAME) --pkgsource=$(SRC_URL) --pkgversion=$(VERSION) --pkgrelease=$(RELEASE) \
-	--maintainer=$(MAINTAINER) --pkglicense=$(LICENSE) --pkggroup="shellutils" --install=no make install
+	--maintainer=$(MAINTAINER) --pkglicense=$(LICENSE) --pkggroup="shellutils" --install=no make install PREFIX=$(PREFIX_PACKAGES)
 
 install: $(PROGNAME)
 	mkdir -p $(DESTDIR)$(INSTALLDIR)/

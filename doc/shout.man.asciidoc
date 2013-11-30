@@ -8,7 +8,7 @@ shout - prints large alphanumeric characters to terminal
 
 SYNOPSIS
 --------
-*shout* [-h | --help] | 'string' ['clear_screen' ['cursor_off']]
+*shout* [-h | --help] | 'string' ['clear_screen' ['cursor_off' ['clear_newline']]]]
 
 DESCRIPTION
 -----------
@@ -40,7 +40,7 @@ Strings enclosed in \<\> can contain highlighted parts.
 If the terminal width is not wide enough for displaying the input on 
 one line, the output will look weird.
 
-shout version is 0.4
+shout version is 0.5
 
 OPTIONS
 -------
@@ -55,6 +55,8 @@ OPTIONS
 	before output takes place
 *cursor_off*::
 	If equal 1, the cursor will be hidden (stays hidden after program exits)
+*clear_newline*::
+	If equal 1, the screen will be cleared for every new input line (useful in conjuction with '-')
 
 EXIT STATUS
 -----------

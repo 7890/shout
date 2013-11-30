@@ -68,7 +68,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 * fg 47 (light gray)
 */
 
-static double version=0.4;
+static double version=0.5;
 
 int black=40;
 int lgray=47;
@@ -80,9 +80,12 @@ int invertColors=0;
 
 int escapeMode=-1;
 
-int readStdIn=0;
+int clearOnNewLine=0;
 
-char inbuff[256];
+#define BUFFSIZE 256
+char inbuff[BUFFSIZE];
+
+int process();
 
 int main(int argc, char **argv)
 {
@@ -129,12 +132,13 @@ int main(int argc, char **argv)
 
 	if(strcmp(argv[1],"--help")==0 || strcmp(argv[1],"-h")==0)
 	{
-		printf("syntax: shout '<string>' (<clear> (<cursor off>))\n\n");
+		printf("syntax: shout '<string>' (<clear> (<cursor off> (<clear newline>)))\n\n");
 		printf("supported characters for string:\n");
 		printf("0123456789+-=_.,:;!?/\\[](){}abcdefghijklmnopqrstuvwxyz* (and space)\n\n");
 		printf("if <string> is '-', stdin will be used\n");
 		printf("if <clear> is present and equal '1', screen will be cleared.\n");
 		printf("if <cursor off> is present and equal '1', cursor will be hidden.\n");
+		printf("if <clear newline> is present and equal '1', the screen will be cleared for every new line (useful for stdin input).\n\n");
 		printf("parts of a string can be highlighted by prefixing or enclosing it with\n");
 		printf("\\[ (red) \\], \\{ (green) \\} or \\( (blue) \\). ");
 		printf("to invert colors, enclose in \\<\\>.\n");
@@ -147,25 +151,6 @@ int main(int argc, char **argv)
 		printf("shout --version\n");
 		printf("shout --info\n");
 		return(0);
-	}
-
-	//read from stdin, write to inbuff
-	if(strcmp(argv[1],"-")==0)
-	{
-		readStdIn=1;
-		char c;
-		char* nl="\n";
-
-		int count=0;
-		while((c=getchar()) > 0)
-		{
-			if(c != *nl)
-			{
-				inbuff[count]=c;
-				//printf("%c",inbuff[count]);
-				count++;
-			}
-		}
 	}
 
 	if(argc>2 && argv[2][0]=='1')
@@ -185,12 +170,55 @@ int main(int argc, char **argv)
 		printf("\e[?25h");
 	}
 
-	if(readStdIn==0)
+	if(argc>4 && argv[4][0]=='1')
+	{
+		//clear screen for every new line
+		clearOnNewLine=1;
+	}
+
+	//read from stdin, write to inbuff
+	if(strcmp(argv[1],"-")==0)
+	{
+		char c;
+		char* nl="\n";
+
+		int count=0;
+		while((c=getchar()) > 0)
+		{
+			if(c != *nl)
+			{
+				inbuff[count]=c;
+				//printf("%c",inbuff[count]);
+				count++;
+			}
+			else
+			{
+				if(clearOnNewLine==1)
+				{
+					printf("\ec");
+				}
+				//one line
+				process();
+				//clear inbuff for next line
+				memset(inbuff,0,(unsigned int)strlen(inbuff));
+				count=0;
+			}
+		}
+	}
+	else
 	{
 		//copy argument string to inbuff
 		strncpy(inbuff, argv[1], (unsigned int)strlen(argv[1]));
+		return process();
 	}
 	//printf("%u\n",(unsigned int)strlen(inbuff));
+	return(0);
+} //end main
+
+
+
+int process()
+{
 
 	//for every line of a big 'char'
 	for(int c=1;c<=8;c++)
@@ -502,6 +530,5 @@ int main(int argc, char **argv)
 		//end of lined up char parts
 		printf("\n");
 	}//end for every line of char
-
-	return(0);
-} //end shout.c
+	return 0;
+} //end process

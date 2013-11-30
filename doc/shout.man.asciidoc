@@ -19,6 +19,8 @@ The following characters can be printed:
 
 *0123456789+-=_.,:;!?/\[](){}abcdefghijklmnopqrstuvwxyz** (and space)
 
+*If 'string' is '-', stdin will be used
+
 Prefixed with the escape character *\* (backslash), the following characters or 'tags' are interpreted for highlighting or inverting:
 
 *\[...\]*: background red
@@ -38,7 +40,7 @@ Strings enclosed in \<\> can contain highlighted parts.
 If the terminal width is not wide enough for displaying the input on 
 one line, the output will look weird.
 
-shout version is 0.3
+shout version is 0.4
 
 OPTIONS
 -------
@@ -91,6 +93,9 @@ Using options, hide cursor::
 
 Multiline output::
 	$ shout 123; shout 456
+
+Read from stdin::
+	$ echo "abc" | shout -
 
 BUGS
 ----

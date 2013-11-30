@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "digits.h"
 
-//tb/130701/130703/130705//130715/130716
+//tb/130701/130703/130705/130715/130716/131130
 /*
 * output large colored alphanumeric characters in terminal
 * supports partial highlight  \[,\{,\(
@@ -68,7 +68,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 * fg 47 (light gray)
 */
 
-static double version=0.3;
+static double version=0.4;
 
 int black=40;
 int lgray=47;
@@ -79,6 +79,10 @@ int blue=44;
 int invertColors=0;
 
 int escapeMode=-1;
+
+int readStdIn=0;
+
+char inbuff[256];
 
 int main(int argc, char **argv)
 {
@@ -128,6 +132,7 @@ int main(int argc, char **argv)
 		printf("syntax: shout '<string>' (<clear> (<cursor off>))\n\n");
 		printf("supported characters for string:\n");
 		printf("0123456789+-=_.,:;!?/\\[](){}abcdefghijklmnopqrstuvwxyz* (and space)\n\n");
+		printf("if <string> is '-', stdin will be used\n");
 		printf("if <clear> is present and equal '1', screen will be cleared.\n");
 		printf("if <cursor off> is present and equal '1', cursor will be hidden.\n");
 		printf("parts of a string can be highlighted by prefixing or enclosing it with\n");
@@ -142,6 +147,25 @@ int main(int argc, char **argv)
 		printf("shout --version\n");
 		printf("shout --info\n");
 		return(0);
+	}
+
+	//read from stdin, write to inbuff
+	if(strcmp(argv[1],"-")==0)
+	{
+		readStdIn=1;
+		char c;
+		char* nl="\n";
+
+		int count=0;
+		while((c=getchar()) > 0)
+		{
+			if(c != *nl)
+			{
+				inbuff[count]=c;
+				//printf("%c",inbuff[count]);
+				count++;
+			}
+		}
 	}
 
 	if(argc>2 && argv[2][0]=='1')
@@ -161,6 +185,13 @@ int main(int argc, char **argv)
 		printf("\e[?25h");
 	}
 
+	if(readStdIn==0)
+	{
+		//copy argument string to inbuff
+		strncpy(inbuff, argv[1], (unsigned int)strlen(argv[1]));
+	}
+	//printf("%u\n",(unsigned int)strlen(inbuff));
+
 	//for every line of a big 'char'
 	for(int c=1;c<=8;c++)
 	{
@@ -171,41 +202,41 @@ int main(int argc, char **argv)
 		BG_COL=black;FG_COL=lgray;
 
 		//for every char of input
-		for(int i=0;argv[1][i]!='\0';i++)
+		for(int i=0;inbuff[i]!='\0';i++)
 		{
 			//backslash used as escape character
-			if(argv[1][i]=='\\' && escapeMode==0)
+			if(inbuff[i]=='\\' && escapeMode==0)
 			{
 				escapeMode=1;
 			}
-			else if(argv[1][i]=='\\')
+			else if(inbuff[i]=='\\')
 			{
 				escapeMode=0;
 				_backslash(c);
 			}
 			// \[ rec
-			else if(argv[1][i]=='[' && escapeMode==1)
+			else if(inbuff[i]=='[' && escapeMode==1)
 			{
 				escapeMode=0;
 				if(invertColors==0){BG_COL=red;FG_COL=lgray;}
 				else{BG_COL=lgray;FG_COL=red;}
 			}
 			// \{ green
-			else if(argv[1][i]=='{' && escapeMode==1)
+			else if(inbuff[i]=='{' && escapeMode==1)
 			{
 				escapeMode=0;
 				if(invertColors==0){BG_COL=green;FG_COL=lgray;}
 				else{BG_COL=lgray;FG_COL=green;}
 			}
 			// \( blue
-			else if(argv[1][i]=='(' && escapeMode==1)
+			else if(inbuff[i]=='(' && escapeMode==1)
 			{
 				escapeMode=0;
 				if(invertColors==0){BG_COL=blue;FG_COL=lgray;}
 				else{BG_COL=lgray;FG_COL=blue;}
 			}
 			// \] \} \) end color
-			else if( (argv[1][i]==']' || argv[1][i]=='}' || argv[1][i]==')') 
+			else if( (inbuff[i]==']' || inbuff[i]=='}' || inbuff[i]==')') 
 				&& escapeMode==1)
 			{
 				escapeMode=0;
@@ -213,256 +244,256 @@ int main(int argc, char **argv)
 				else{BG_COL=lgray;FG_COL=black;}
 			}
 			// \< invert
-			else if(argv[1][i]=='<'  && escapeMode==1)
+			else if(inbuff[i]=='<'  && escapeMode==1)
 			{
 				escapeMode=0;
 				invertColors=1;
 				BG_COL=lgray;FG_COL=black;
 			}
 			// \> end invert
-			else if(argv[1][i]=='>' && escapeMode==1)
+			else if(inbuff[i]=='>' && escapeMode==1)
 			{
 				escapeMode=0;
 				invertColors=0;
 				BG_COL=black;FG_COL=lgray;
 			}
 			// \a
-			else if(argv[1][i]=='a' && escapeMode==1)
+			else if(inbuff[i]=='a' && escapeMode==1)
 			{
 				escapeMode=0;
 				_line_middle_horizontal(c);
 			}
 			// \b
-			else if(argv[1][i]=='b' && escapeMode==1)
+			else if(inbuff[i]=='b' && escapeMode==1)
 			{
 				escapeMode=0;
 				_line_bottom(c);
 			}
 
 			//unescaped
-			else if(argv[1][i]=='[')
+			else if(inbuff[i]=='[')
 			{
 				_lbbrace(c);
 			}
-			else if(argv[1][i]==']')
+			else if(inbuff[i]==']')
 			{
 				_rbbrace(c);
 			}
-			else if(argv[1][i]=='{')
+			else if(inbuff[i]=='{')
 			{
 				_lcbrace(c);
 			}
-			else if(argv[1][i]=='}')
+			else if(inbuff[i]=='}')
 			{
 				_rcbrace(c);
 			}
-			else if(argv[1][i]=='(')
+			else if(inbuff[i]=='(')
 			{
 				_lbrace(c);
 			}
-			else if(argv[1][i]==')')
+			else if(inbuff[i]==')')
 			{
 				_rbrace(c);
 			}
-			else if(argv[1][i]=='0')
+			else if(inbuff[i]=='0')
 			{
 				_0(c);
 			}
-			else if(argv[1][i]=='1')
+			else if(inbuff[i]=='1')
 			{
 				_1(c);
 			}
-			else if(argv[1][i]=='2')
+			else if(inbuff[i]=='2')
 			{
 				_2(c);
 			}
-			else if(argv[1][i]=='3')
+			else if(inbuff[i]=='3')
 			{
 				_3(c);
 			}
-			else if(argv[1][i]=='4')
+			else if(inbuff[i]=='4')
 			{
 				_4(c);
 			}
-			else if(argv[1][i]=='5')
+			else if(inbuff[i]=='5')
 			{
 				_5(c);
 			}
-			else if(argv[1][i]=='6')
+			else if(inbuff[i]=='6')
 			{
 				_6(c);
 			}
-			else if(argv[1][i]=='7')
+			else if(inbuff[i]=='7')
 			{
 				_7(c);
 			}
-			else if(argv[1][i]=='8')
+			else if(inbuff[i]=='8')
 			{
 				_8(c);
 			}
-			else if(argv[1][i]=='9')
+			else if(inbuff[i]=='9')
 			{
 				_9(c);
 			}
-			else if(argv[1][i]==':')
+			else if(inbuff[i]==':')
 			{
 				_colon(c);
 			}
-			else if(argv[1][i]==';')
+			else if(inbuff[i]==';')
 			{
 				_semicolon(c);
 			}
-			else if(argv[1][i]==',')
+			else if(inbuff[i]==',')
 			{
 				_comma(c);
 			}
-			else if(argv[1][i]=='.')
+			else if(inbuff[i]=='.')
 			{
 				_period(c);
 			}
-			else if(argv[1][i]=='+')
+			else if(inbuff[i]=='+')
 			{
 				_plus(c);
 			}
-			else if(argv[1][i]=='-')
+			else if(inbuff[i]=='-')
 			{
 				_minus(c);
 			}
-			else if(argv[1][i]=='/')
+			else if(inbuff[i]=='/')
 			{
 				_slash(c);
 			}
-			else if(argv[1][i]=='*')
+			else if(inbuff[i]=='*')
 			{
 				_multiplication(c);
 			}
-			else if(argv[1][i]=='!')
+			else if(inbuff[i]=='!')
 			{
 				_exclamation(c);
 			}
-			else if(argv[1][i]=='?')
+			else if(inbuff[i]=='?')
 			{
 				_questionmark(c);
 			}
-			else if(argv[1][i]=='=')
+			else if(inbuff[i]=='=')
 			{
 				_equal(c);
 			}
-			else if(argv[1][i]=='_')
+			else if(inbuff[i]=='_')
 			{
 				_underscore(c);
 			}
-			else if(argv[1][i]==' ')
+			else if(inbuff[i]==' ')
 			{
 				_space(c);
 			}
-			else if(argv[1][i]=='a')
+			else if(inbuff[i]=='a')
 			{
 				_a(c);
 			}
-			else if(argv[1][i]=='b')
+			else if(inbuff[i]=='b')
 			{
 				_b(c);
 			}
-			else if(argv[1][i]=='c')
+			else if(inbuff[i]=='c')
 			{
 				_c(c);
 			}
-			else if(argv[1][i]=='d')
+			else if(inbuff[i]=='d')
 			{
 				_d(c);
 			}
-			else if(argv[1][i]=='e')
+			else if(inbuff[i]=='e')
 			{
 				_e(c);
 			}
-			else if(argv[1][i]=='f')
+			else if(inbuff[i]=='f')
 			{
 				_f(c);
 			}
-			else if(argv[1][i]=='g')
+			else if(inbuff[i]=='g')
 			{
 				_g(c);
 			}
-			else if(argv[1][i]=='h')
+			else if(inbuff[i]=='h')
 			{
 				_h(c);
 			}
-			else if(argv[1][i]=='i')
+			else if(inbuff[i]=='i')
 			{
 				_i(c);
 			}
-			else if(argv[1][i]=='j')
+			else if(inbuff[i]=='j')
 			{
 				_j(c);
 			}
-			else if(argv[1][i]=='k')
+			else if(inbuff[i]=='k')
 			{
 				_k(c);
 			}
-			else if(argv[1][i]=='l')
+			else if(inbuff[i]=='l')
 			{
 				_l(c);
 			}
-			else if(argv[1][i]=='m')
+			else if(inbuff[i]=='m')
 			{
 				_m(c);
 			}
-			else if(argv[1][i]=='n')
+			else if(inbuff[i]=='n')
 			{
 				_n(c);
 			}
-			else if(argv[1][i]=='o')
+			else if(inbuff[i]=='o')
 			{
 				_o(c);
 			}
-			else if(argv[1][i]=='p')
+			else if(inbuff[i]=='p')
 			{
 				_p(c);
 			}
-			else if(argv[1][i]=='q')
+			else if(inbuff[i]=='q')
 			{
 				_q(c);
 			}
-			else if(argv[1][i]=='r')
+			else if(inbuff[i]=='r')
 			{
 				_r(c);
 			}
-			else if(argv[1][i]=='s')
+			else if(inbuff[i]=='s')
 			{
 				_s(c);
 			}
-			else if(argv[1][i]=='t')
+			else if(inbuff[i]=='t')
 			{
 				_t(c);
 			}
-			else if(argv[1][i]=='u')
+			else if(inbuff[i]=='u')
 			{
 				_u(c);
 			}
-			else if(argv[1][i]=='v')
+			else if(inbuff[i]=='v')
 			{
 				_v(c);
 			}
-			else if(argv[1][i]=='w')
+			else if(inbuff[i]=='w')
 			{
 				_w(c);
 			}
-			else if(argv[1][i]=='x')
+			else if(inbuff[i]=='x')
 			{
 				_x(c);
 			}
-			else if(argv[1][i]=='y')
+			else if(inbuff[i]=='y')
 			{
 				_y(c);
 			}
-			else if(argv[1][i]=='z')
+			else if(inbuff[i]=='z')
 			{
 				_z(c);
 			}
 			else
 			{
-				printf("\nunknown char: %c\n",argv[1][i]);
+				printf("\nunknown char: %c\n",inbuff[i]);
 				return(1);
 			}
 

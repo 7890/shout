@@ -68,7 +68,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 * fg 47 (light gray)
 */
 
-static double version=0.51;
+static double version=0.52;
 
 int black=40;
 int lgray=47;
@@ -134,7 +134,7 @@ int main(int argc, char **argv)
 	{
 		printf("syntax: shout '<string>' (<clear> (<cursor off> (<clear newline>)))\n\n");
 		printf("supported characters for string:\n");
-		printf("0123456789+-=_.,:;!?/\\[](){}<>abcdefghijklmnopqrstuvwxyz* (and space)\n\n");
+		printf("0123456789+-=_.,:;!?|%%&$@#/\\[](){}<>abcdefghijklmnopqrstuvwxyz*'\" (and space)\n\n");
 		printf("if <string> is '-', stdin will be used\n");
 		printf("if <clear> is present and equal '1', screen will be cleared.\n");
 		printf("if <cursor off> is present and equal '1', cursor will be hidden.\n");
@@ -330,6 +330,38 @@ int process()
 			else if(inbuff[i]=='>')
 			{
 				_gt(c);
+			}
+			else if(inbuff[i]=='\'')
+			{
+				_apos(c);
+			}
+			else if(inbuff[i]=='"')
+			{
+				_doublequote(c);
+			}
+			else if(inbuff[i]=='@')
+			{
+				_at(c);
+			}
+			else if(inbuff[i]=='%')
+			{
+				_percent(c);
+			}
+			else if(inbuff[i]=='&')
+			{
+				_amp(c);
+			}
+			else if(inbuff[i]=='$')
+			{
+				_dollar(c);
+			}
+			else if(inbuff[i]=='#')
+			{
+				_hash(c);
+			}
+			else if(inbuff[i]=='|')
+			{
+				_pipe(c);
 			}
 			else if(inbuff[i]=='0')
 			{

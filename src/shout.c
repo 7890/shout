@@ -68,7 +68,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 * fg 47 (light gray)
 */
 
-static double version=0.52;
+static double version=0.53;
 
 int black=40;
 int lgray=47;
@@ -134,7 +134,7 @@ int main(int argc, char **argv)
 	{
 		printf("syntax: shout '<string>' (<clear> (<cursor off> (<clear newline>)))\n\n");
 		printf("supported characters for string:\n");
-		printf("0123456789+-=_.,:;!?|%%&$@#/\\[](){}<>abcdefghijklmnopqrstuvwxyz*'\" (and space)\n\n");
+		printf("0123456789+-=_.,:;!?|%%&$@#/\\[](){}<>*'\" (plus [a-z], [A-Z] and space)\n\n");
 		printf("if <string> is '-', stdin will be used\n");
 		printf("if <clear> is present and equal '1', screen will be cleared.\n");
 		printf("if <cursor off> is present and equal '1', cursor will be hidden.\n");
@@ -455,107 +455,107 @@ int process()
 			{
 				_space(c);
 			}
-			else if(inbuff[i]=='a')
+			else if(inbuff[i]=='a' || inbuff[i]=='A')
 			{
 				_a(c);
 			}
-			else if(inbuff[i]=='b')
+			else if(inbuff[i]=='b' || inbuff[i]=='B')
 			{
 				_b(c);
 			}
-			else if(inbuff[i]=='c')
+			else if(inbuff[i]=='c' || inbuff[i]=='C')
 			{
 				_c(c);
 			}
-			else if(inbuff[i]=='d')
+			else if(inbuff[i]=='d' || inbuff[i]=='D')
 			{
 				_d(c);
 			}
-			else if(inbuff[i]=='e')
+			else if(inbuff[i]=='e' || inbuff[i]=='E')
 			{
 				_e(c);
 			}
-			else if(inbuff[i]=='f')
+			else if(inbuff[i]=='f' || inbuff[i]=='F')
 			{
 				_f(c);
 			}
-			else if(inbuff[i]=='g')
+			else if(inbuff[i]=='g' || inbuff[i]=='G')
 			{
 				_g(c);
 			}
-			else if(inbuff[i]=='h')
+			else if(inbuff[i]=='h' || inbuff[i]=='H')
 			{
 				_h(c);
 			}
-			else if(inbuff[i]=='i')
+			else if(inbuff[i]=='i' || inbuff[i]=='I')
 			{
 				_i(c);
 			}
-			else if(inbuff[i]=='j')
+			else if(inbuff[i]=='j' || inbuff[i]=='J')
 			{
 				_j(c);
 			}
-			else if(inbuff[i]=='k')
+			else if(inbuff[i]=='k' || inbuff[i]=='K')
 			{
 				_k(c);
 			}
-			else if(inbuff[i]=='l')
+			else if(inbuff[i]=='l' || inbuff[i]=='L')
 			{
 				_l(c);
 			}
-			else if(inbuff[i]=='m')
+			else if(inbuff[i]=='m' || inbuff[i]=='M')
 			{
 				_m(c);
 			}
-			else if(inbuff[i]=='n')
+			else if(inbuff[i]=='n' || inbuff[i]=='N')
 			{
 				_n(c);
 			}
-			else if(inbuff[i]=='o')
+			else if(inbuff[i]=='o' || inbuff[i]=='O')
 			{
 				_o(c);
 			}
-			else if(inbuff[i]=='p')
+			else if(inbuff[i]=='p' || inbuff[i]=='P')
 			{
 				_p(c);
 			}
-			else if(inbuff[i]=='q')
+			else if(inbuff[i]=='q' || inbuff[i]=='Q')
 			{
 				_q(c);
 			}
-			else if(inbuff[i]=='r')
+			else if(inbuff[i]=='r' || inbuff[i]=='R')
 			{
 				_r(c);
 			}
-			else if(inbuff[i]=='s')
+			else if(inbuff[i]=='s' || inbuff[i]=='S')
 			{
 				_s(c);
 			}
-			else if(inbuff[i]=='t')
+			else if(inbuff[i]=='t' || inbuff[i]=='T')
 			{
 				_t(c);
 			}
-			else if(inbuff[i]=='u')
+			else if(inbuff[i]=='u' || inbuff[i]=='U')
 			{
 				_u(c);
 			}
-			else if(inbuff[i]=='v')
+			else if(inbuff[i]=='v' || inbuff[i]=='V')
 			{
 				_v(c);
 			}
-			else if(inbuff[i]=='w')
+			else if(inbuff[i]=='w' || inbuff[i]=='W')
 			{
 				_w(c);
 			}
-			else if(inbuff[i]=='x')
+			else if(inbuff[i]=='x' || inbuff[i]=='X')
 			{
 				_x(c);
 			}
-			else if(inbuff[i]=='y')
+			else if(inbuff[i]=='y' || inbuff[i]=='Y')
 			{
 				_y(c);
 			}
-			else if(inbuff[i]=='z')
+			else if(inbuff[i]=='z' || inbuff[i]=='Z')
 			{
 				_z(c);
 			}

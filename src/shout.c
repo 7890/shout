@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "digits.h"
 
-//tb/130701/130703/130705/130715/130716/131130
+//tb/130701/130703/130705/130715/130716/131130/140820
 /*
 * output large colored alphanumeric characters in terminal
 * supports partial highlight  \[,\{,\(
@@ -68,7 +68,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 * fg 47 (light gray)
 */
 
-static double version=0.5;
+static double version=0.51;
 
 int black=40;
 int lgray=47;
@@ -116,13 +116,13 @@ int main(int argc, char **argv)
 
 	if(strcmp(argv[1],"--version")==0 || strcmp(argv[1],"-v")==0)
 	{
-		printf("%f\n",version);
+		printf("%.2f\n",version);
 		return(0);
 	}
 
 	if(strcmp(argv[1],"--info")==0 || strcmp(argv[1],"-i")==0)
 	{
-		printf("shout version %f, Copyright (C) 2013  Thomas Brand\n",version);
+		printf("shout version %f, Copyright (C) 2013 - 2014  Thomas Brand\n",version);
 		printf("shout comes with ABSOLUTELY NO WARRANTY;\n");
 		printf("This is free software, and you are welcome to redistribute it\n");
 		printf("under certain conditions; see COPYING for details.\n");
@@ -134,7 +134,7 @@ int main(int argc, char **argv)
 	{
 		printf("syntax: shout '<string>' (<clear> (<cursor off> (<clear newline>)))\n\n");
 		printf("supported characters for string:\n");
-		printf("0123456789+-=_.,:;!?/\\[](){}abcdefghijklmnopqrstuvwxyz* (and space)\n\n");
+		printf("0123456789+-=_.,:;!?/\\[](){}<>abcdefghijklmnopqrstuvwxyz* (and space)\n\n");
 		printf("if <string> is '-', stdin will be used\n");
 		printf("if <clear> is present and equal '1', screen will be cleared.\n");
 		printf("if <cursor off> is present and equal '1', cursor will be hidden.\n");
@@ -322,6 +322,14 @@ int process()
 			else if(inbuff[i]==')')
 			{
 				_rbrace(c);
+			}
+			else if(inbuff[i]=='<')
+			{
+				_lt(c);
+			}
+			else if(inbuff[i]=='>')
+			{
+				_gt(c);
 			}
 			else if(inbuff[i]=='0')
 			{

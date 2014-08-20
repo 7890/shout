@@ -1,7 +1,7 @@
 /*
 digits.h
 part of shout
-Copyright (C) 2013 Thomas Brand
+Copyright (C) 2013 - 2014 Thomas Brand
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -63,6 +63,8 @@ void _lbbrace(int line);
 void _rbbrace(int line);
 void _lcbrace(int line);
 void _rcbrace(int line);
+void _lt(int line);
+void _gt(int line);
 void _a(int line);
 void _b(int line);
 void _c(int line);

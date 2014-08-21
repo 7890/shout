@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 
 #include "digits.h"
 
@@ -68,7 +69,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 * fg 47 (light gray)
 */
 
-static double version=0.54;
+static double version=0.6;
 
 int black=40;
 int lgray=47;
@@ -128,7 +129,6 @@ int main(int argc, char **argv)
 		printf("under certain conditions; see COPYING for details.\n");
 		return(0);
 	}
-
 
 	if(strcmp(argv[1],"--help")==0 || strcmp(argv[1],"-h")==0)
 	{
@@ -219,7 +219,21 @@ int main(int argc, char **argv)
 
 int process()
 {
+	//get term width / cols
+	//http://stackoverflow.com/questions/1022957/getting-terminal-width-in-c
+	struct winsize w;
+	ioctl(1, TIOCGWINSZ, &w);
 
+	int columns = w.ws_col;
+	int chars_per_line=columns/8;
+
+	int shout_lines=1+strlen(inbuff)/chars_per_line;
+
+	//printf("%d %d %d\n",columns,chars_per_line,shout_lines);
+
+	//wrap line if it doesn't fit to terminal width
+	for(int k=0;k<shout_lines;k++)
+	{
 	//for every line of a big 'char'
 	for(int c=1;c<=8;c++)
 	{
@@ -230,7 +244,9 @@ int process()
 		BG_COL=black;FG_COL=lgray;
 
 		//for every char of input
-		for(int i=0;inbuff[i]!='\0';i++)
+		//for(int i=0;inbuff[i]!='\0';i++)
+		for(int i=(k*chars_per_line);inbuff[i]!='\0' && i < (k*chars_per_line + chars_per_line);i++)
+
 		{
 			//backslash used as escape character
 			if(inbuff[i]=='\\' && escapeMode==0)
@@ -272,7 +288,7 @@ int process()
 				else{BG_COL=lgray;FG_COL=black;}
 			}
 			// \< invert
-			else if(inbuff[i]=='<'  && escapeMode==1)
+			else if(inbuff[i]=='<' && escapeMode==1)
 			{
 				escapeMode=0;
 				invertColors=1;
@@ -581,6 +597,9 @@ int process()
 
 		//end of lined up char parts
 		printf("\n");
+
 	}//end for every line of char
+	}//end for wrapped lines
+
 	return 0;
 } //end process

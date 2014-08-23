@@ -266,8 +266,6 @@ int process()
 	int BG_COL_reset=black;
 	int FG_COL_reset=lgray;
 
-	int multibyte_char=0;
-
 	while(finished==0)
 	{
 		//for every line of a shout char consisting of 8 lines
@@ -284,14 +282,8 @@ int process()
 			//will break out through handle_line_length
 			while(current_line_length!=break_at && inbuff[input_string_position]!='\0')
 			{
-
-				if(inbuff[input_string_position] == -61 
-					|| inbuff[input_string_position] == -62)
-				{
-					multibyte_char=inbuff[input_string_position];
-				}
 				//backslash used as escape character
-				else if(inbuff[input_string_position]=='\\' && escapeMode==0)
+				if(inbuff[input_string_position]=='\\' && escapeMode==0)
 				{
 					escapeMode=1;
 				}
@@ -630,62 +622,76 @@ int process()
 				}
 
 				//multibyte
-				else if(multibyte_char == -61)
+				else if(inbuff[input_string_position] == -61)
 				{
 					//ä Ä
-					if(inbuff[input_string_position]==-92 || inbuff[input_string_position]==-124)
+					if(inbuff[input_string_position+1]==-92 || inbuff[input_string_position+1]==-124)
 					{
 						handle_line_length(_auml,_auml_w,char_part_line);
 					}
 					//ö Ö
-					else if(inbuff[input_string_position]==-74 || inbuff[input_string_position]==-106)
+					else if(inbuff[input_string_position+1]==-74 || inbuff[input_string_position+1]==-106)
 					{
 						handle_line_length(_ouml,_ouml_w,char_part_line);
 					}
 					//ü Ü
-					else if(inbuff[input_string_position]==-68 || inbuff[input_string_position]==-100)
+					else if(inbuff[input_string_position+1]==-68 || inbuff[input_string_position+1]==-100)
 					{
 						handle_line_length(_uuml,_uuml_w,char_part_line);
 					}
 					//é É
-					else if(inbuff[input_string_position]==-87 || inbuff[input_string_position]==-119)
+					else if(inbuff[input_string_position+1]==-87 || inbuff[input_string_position+1]==-119)
 					{
 						handle_line_length(_eakut,_eakut_w,char_part_line);
 					}
 					//è È
-					else if(inbuff[input_string_position]==-88 || inbuff[input_string_position]==-120)
+					else if(inbuff[input_string_position+1]==-88 || inbuff[input_string_position+1]==-120)
 					{
 						handle_line_length(_egravis,_egravis_w,char_part_line);
 					}
 					//à À
-					else if(inbuff[input_string_position]==-96 || inbuff[input_string_position]==-128)
+					else if(inbuff[input_string_position+1]==-96 || inbuff[input_string_position+1]==-128)
 					{
 						handle_line_length(_agravis,_agravis_w,char_part_line);
 					}
 					//ç
-					else if(inbuff[input_string_position]==-89)
+					else if(inbuff[input_string_position+1]==-89)
 					{
 						handle_line_length(_ccedille,_ccedille_w,char_part_line);
 					}
+					else
+					{
+						printf("x");
+					}
+
+					if(line_complete==0){input_string_position++;}
 				}
-				else if(multibyte_char == -62)
+				else if(inbuff[input_string_position] == -62)
 				{
 					//°
-					if(inbuff[input_string_position]==-80)
+					if(inbuff[input_string_position+1]==-80)
 					{
 						handle_line_length(_degree,_degree_w,char_part_line);
 					}
 					//§
-					else if(inbuff[input_string_position]==-89)
+					else if(inbuff[input_string_position+1]==-89)
 					{
 						handle_line_length(_section,_section_w,char_part_line);
 					}
+					else
+					{
+						printf("x");
+					}
+
+					if(line_complete==0){input_string_position++;}
 				}
+/*
 				else
 				{
-					printf("\nunknown char: %c\n",inbuff[input_string_position]);
+					printf("\nunknown char: %c (%d)\n",inbuff[input_string_position],inbuff[input_string_position]);
 					return(1);
 				}
+*/
 
 				input_string_position++;
 
@@ -695,7 +701,6 @@ int process()
 			printf("\n");
 			//reset inversion (\<)
 			invertColors=0;
-
 
 		}//end for every shout char_part_line
 

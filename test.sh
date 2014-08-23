@@ -28,8 +28,8 @@ test "\(aaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 test "\(aa\[aaaaaaaaaaaaaaaaaaaaaaaaaaa"
 test "\(aa\[aa\<aaaaaaaaaaaaaaaaaaaaaaa\>aa"
 
-string="\\\\/0123456789+-=_.,:;!?|%&@#^~[](){}$<>*'\` abcdefghijklmnopqrstuvwxyz"
-test "$string"
-
 printf "a\nb\nc\n" | shout - $opts
 printf "a\nbbbbbbbbbbbbbbbbbbbbbbbbbbb\nc\n" | shout - $opts
+
+string="\\\\/0123456789+-=_.,:;!?|%&@#^~[](){}$<>*'\` abcdefghijklmnopqrstuvwxyzäöüéèà§°ç"
+test "$string"

@@ -190,7 +190,7 @@ int main(int argc, char **argv)
 		char* nl="\n";
 
 		int count=0;
-		while((c=getchar()) > 0)
+		while((c=getchar()) != EOF)
 		{
 			if(c != *nl)
 			{

@@ -266,6 +266,8 @@ int process()
 	int BG_COL_reset=black;
 	int FG_COL_reset=lgray;
 
+	int multibyte_char=0;
+
 	while(finished==0)
 	{
 		//for every line of a shout char consisting of 8 lines
@@ -278,8 +280,6 @@ int process()
 			current_line_length=0;
 
 			input_string_position=input_string_position_offset;
-
-			int multibyte_char=0;
 
 			//will break out through handle_line_length
 			while(current_line_length!=break_at && inbuff[input_string_position]!='\0')

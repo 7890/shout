@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 
 	if(strcmp(argv[1],"--info")==0 || strcmp(argv[1],"-i")==0)
 	{
-		printf("shout version %f, Copyright (C) 2013 - 2014  Thomas Brand\n",version);
+		printf("shout version %.2f, Copyright (C) 2013 - 2014  Thomas Brand\n",version);
 		printf("shout comes with ABSOLUTELY NO WARRANTY;\n");
 		printf("This is free software, and you are welcome to redistribute it\n");
 		printf("under certain conditions; see COPYING for details.\n");

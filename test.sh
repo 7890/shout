@@ -8,7 +8,7 @@ read_wait=""
 
 function test
 {
-	shout "$1" $opts
+	./shout "$1" $opts
 	echo "$1" | shout - $opts
 	$read_wait
 }

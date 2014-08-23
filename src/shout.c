@@ -69,7 +69,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 * fg 47 (light gray)
 */
 
-static double version=0.7;
+static double version=0.71;
 
 int black=40;
 int lgray=47;
@@ -141,7 +141,7 @@ int main(int argc, char **argv)
 	{
 		printf("syntax: shout '<string>' (<clear> (<cursor off> (<clear newline>)))\n\n");
 		printf("supported characters for string:\n");
-		printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\" (plus [a-z], [A-Z] and space)\n\n");
+		printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéà (plus [a-z], [A-Z] and space)\n\n");
 		printf("if <string> is '-', stdin will be used\n");
 		printf("if <clear> is present and equal '1', screen will be cleared.\n");
 		printf("if <cursor off> is present and equal '1', cursor will be hidden.\n");
@@ -249,6 +249,8 @@ void handle_line_length(
 ////////////////////////////////////////////////////////////////////
 int process()
 {
+	//printf("%d %d\n",inbuff[0],inbuff[1]);
+
 	//get term width / cols
 	//http://stackoverflow.com/questions/1022957/getting-terminal-width-in-c
 	struct winsize w;
@@ -277,12 +279,19 @@ int process()
 
 			input_string_position=input_string_position_offset;
 
+			int multibyte_char=0;
+
 			//will break out through handle_line_length
 			while(current_line_length!=break_at && inbuff[input_string_position]!='\0')
 			{
 
+				if(inbuff[input_string_position] == -61 
+					|| inbuff[input_string_position] == -62)
+				{
+					multibyte_char=inbuff[input_string_position];
+				}
 				//backslash used as escape character
-				if(inbuff[input_string_position]=='\\' && escapeMode==0)
+				else if(inbuff[input_string_position]=='\\' && escapeMode==0)
 				{
 					escapeMode=1;
 				}
@@ -618,6 +627,59 @@ int process()
 				else if(inbuff[input_string_position]=='z' || inbuff[input_string_position]=='Z')
 				{
 					handle_line_length(_z,_z_w,char_part_line);
+				}
+
+				//multibyte
+				else if(multibyte_char == -61)
+				{
+					//ä Ä
+					if(inbuff[input_string_position]==-92 || inbuff[input_string_position]==-124)
+					{
+						handle_line_length(_auml,_auml_w,char_part_line);
+					}
+					//ö Ö
+					else if(inbuff[input_string_position]==-74 || inbuff[input_string_position]==-106)
+					{
+						handle_line_length(_ouml,_ouml_w,char_part_line);
+					}
+					//ü Ü
+					else if(inbuff[input_string_position]==-68 || inbuff[input_string_position]==-100)
+					{
+						handle_line_length(_uuml,_uuml_w,char_part_line);
+					}
+					//é É
+					else if(inbuff[input_string_position]==-87 || inbuff[input_string_position]==-119)
+					{
+						handle_line_length(_eakut,_eakut_w,char_part_line);
+					}
+					//è È
+					else if(inbuff[input_string_position]==-88 || inbuff[input_string_position]==-120)
+					{
+						handle_line_length(_egravis,_egravis_w,char_part_line);
+					}
+					//à À
+					else if(inbuff[input_string_position]==-96 || inbuff[input_string_position]==-128)
+					{
+						handle_line_length(_agravis,_agravis_w,char_part_line);
+					}
+					//ç
+					else if(inbuff[input_string_position]==-89)
+					{
+						handle_line_length(_ccedille,_ccedille_w,char_part_line);
+					}
+				}
+				else if(multibyte_char == -62)
+				{
+					//°
+					if(inbuff[input_string_position]==-80)
+					{
+						handle_line_length(_degree,_degree_w,char_part_line);
+					}
+					//§
+					else if(inbuff[input_string_position]==-89)
+					{
+						handle_line_length(_section,_section_w,char_part_line);
+					}
 				}
 				else
 				{

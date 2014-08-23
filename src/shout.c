@@ -69,7 +69,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 * fg 47 (light gray)
 */
 
-static double version=0.6;
+static double version=0.61;
 
 int black=40;
 int lgray=47;
@@ -79,12 +79,19 @@ int blue=44;
 
 int invertColors=0;
 
-int escapeMode=-1;
+int escapeMode=0;
 
 int clearOnNewLine=0;
 
 #define BUFFSIZE 256
 char inbuff[BUFFSIZE];
+
+///////
+int columns = 0;
+int current_line_length=0;
+int line_complete=0;
+int wrapping=0;
+int break_at=-1;
 
 int process();
 
@@ -216,7 +223,30 @@ int main(int argc, char **argv)
 } //end main
 
 
+void handle_line_length(
+	void (*char_func)(int), //_char method
+	int (*width_func)(), //width method
+	int pixel_char_line_number)
+{
 
+	int char_width=width_func();
+	if((current_line_length+char_width) > columns)
+	{
+		line_complete=1;
+		wrapping=1;
+		break_at=current_line_length;
+	}
+	else
+	{
+		line_complete=0;
+		current_line_length+=char_width;
+		wrapping=0;
+		break_at=-1;
+		char_func(pixel_char_line_number);
+	}
+}
+
+////////////////////////////////////////////////////////////////////
 int process()
 {
 	//get term width / cols
@@ -224,382 +254,392 @@ int process()
 	struct winsize w;
 	ioctl(1, TIOCGWINSZ, &w);
 
-	int columns = w.ws_col;
-	int chars_per_line=columns/8;
+	columns = w.ws_col;
 
-	int shout_lines=1+strlen(inbuff)/chars_per_line;
+	int finished=0;
 
-	//printf("%d %d %d\n",columns,chars_per_line,shout_lines);
+	int input_string_position_offset=0;
+	int input_string_position=0;
 
-	//wrap line if it doesn't fit to terminal width
-	for(int k=0;k<shout_lines;k++)
+	while(finished==0)
 	{
-	//for every line of a big 'char'
-	for(int c=1;c<=8;c++)
-	{
-		//reset escaping
-		escapeMode=0;
-
-		//reset colors
-		BG_COL=black;FG_COL=lgray;
-
-		//for every char of input
-		//for(int i=0;inbuff[i]!='\0';i++)
-		for(int i=(k*chars_per_line);inbuff[i]!='\0' && i < (k*chars_per_line + chars_per_line);i++)
-
+		//for every line of a shout char consisting of 8 lines
+		for(int char_part_line=1;char_part_line<=8;char_part_line++)
 		{
-			//backslash used as escape character
-			if(inbuff[i]=='\\' && escapeMode==0)
-			{
-				escapeMode=1;
-			}
-			else if(inbuff[i]=='\\')
-			{
-				escapeMode=0;
-				_backslash(c);
-			}
-			// \[ rec
-			else if(inbuff[i]=='[' && escapeMode==1)
-			{
-				escapeMode=0;
-				if(invertColors==0){BG_COL=red;FG_COL=lgray;}
-				else{BG_COL=lgray;FG_COL=red;}
-			}
-			// \{ green
-			else if(inbuff[i]=='{' && escapeMode==1)
-			{
-				escapeMode=0;
-				if(invertColors==0){BG_COL=green;FG_COL=lgray;}
-				else{BG_COL=lgray;FG_COL=green;}
-			}
-			// \( blue
-			else if(inbuff[i]=='(' && escapeMode==1)
-			{
-				escapeMode=0;
-				if(invertColors==0){BG_COL=blue;FG_COL=lgray;}
-				else{BG_COL=lgray;FG_COL=blue;}
-			}
-			// \] \} \) end color
-			else if( (inbuff[i]==']' || inbuff[i]=='}' || inbuff[i]==')') 
-				&& escapeMode==1)
-			{
-				escapeMode=0;
-				if(invertColors==0){BG_COL=black;FG_COL=lgray;}
-				else{BG_COL=lgray;FG_COL=black;}
-			}
-			// \< invert
-			else if(inbuff[i]=='<' && escapeMode==1)
-			{
-				escapeMode=0;
-				invertColors=1;
-				BG_COL=lgray;FG_COL=black;
-			}
-			// \> end invert
-			else if(inbuff[i]=='>' && escapeMode==1)
-			{
-				escapeMode=0;
-				invertColors=0;
-				BG_COL=black;FG_COL=lgray;
-			}
-			// \a
-			else if(inbuff[i]=='a' && escapeMode==1)
-			{
-				escapeMode=0;
-				_line_middle_horizontal(c);
-			}
-			// \b
-			else if(inbuff[i]=='b' && escapeMode==1)
-			{
-				escapeMode=0;
-				_line_bottom(c);
-			}
+			//reset colors
+			BG_COL=black;FG_COL=lgray;
 
-			//unescaped
-			else if(inbuff[i]=='[')
-			{
-				_lbbrace(c);
-			}
-			else if(inbuff[i]==']')
-			{
-				_rbbrace(c);
-			}
-			else if(inbuff[i]=='{')
-			{
-				_lcbrace(c);
-			}
-			else if(inbuff[i]=='}')
-			{
-				_rcbrace(c);
-			}
-			else if(inbuff[i]=='(')
-			{
-				_lbrace(c);
-			}
-			else if(inbuff[i]==')')
-			{
-				_rbrace(c);
-			}
-			else if(inbuff[i]=='<')
-			{
-				_lt(c);
-			}
-			else if(inbuff[i]=='>')
-			{
-				_gt(c);
-			}
-			else if(inbuff[i]=='\'')
-			{
-				_apos(c);
-			}
-			else if(inbuff[i]=='"')
-			{
-				_doublequote(c);
-			}
-			else if(inbuff[i]=='@')
-			{
-				_at(c);
-			}
-			else if(inbuff[i]=='%')
-			{
-				_percent(c);
-			}
-			else if(inbuff[i]=='&')
-			{
-				_amp(c);
-			}
-			else if(inbuff[i]=='$')
-			{
-				_dollar(c);
-			}
-			else if(inbuff[i]=='#')
-			{
-				_hash(c);
-			}
-			else if(inbuff[i]=='|')
-			{
-				_pipe(c);
-			}
-			else if(inbuff[i]=='`')
-			{
-				_backtick(c);
-			}
-			else if(inbuff[i]=='^')
-			{
-				_caret(c);
-			}
-			else if(inbuff[i]=='~')
-			{
-				_tilde(c);
-			}
-			else if(inbuff[i]=='0')
-			{
-				_0(c);
-			}
-			else if(inbuff[i]=='1')
-			{
-				_1(c);
-			}
-			else if(inbuff[i]=='2')
-			{
-				_2(c);
-			}
-			else if(inbuff[i]=='3')
-			{
-				_3(c);
-			}
-			else if(inbuff[i]=='4')
-			{
-				_4(c);
-			}
-			else if(inbuff[i]=='5')
-			{
-				_5(c);
-			}
-			else if(inbuff[i]=='6')
-			{
-				_6(c);
-			}
-			else if(inbuff[i]=='7')
-			{
-				_7(c);
-			}
-			else if(inbuff[i]=='8')
-			{
-				_8(c);
-			}
-			else if(inbuff[i]=='9')
-			{
-				_9(c);
-			}
-			else if(inbuff[i]==':')
-			{
-				_colon(c);
-			}
-			else if(inbuff[i]==';')
-			{
-				_semicolon(c);
-			}
-			else if(inbuff[i]==',')
-			{
-				_comma(c);
-			}
-			else if(inbuff[i]=='.')
-			{
-				_period(c);
-			}
-			else if(inbuff[i]=='+')
-			{
-				_plus(c);
-			}
-			else if(inbuff[i]=='-')
-			{
-				_minus(c);
-			}
-			else if(inbuff[i]=='/')
-			{
-				_slash(c);
-			}
-			else if(inbuff[i]=='*')
-			{
-				_multiplication(c);
-			}
-			else if(inbuff[i]=='!')
-			{
-				_exclamation(c);
-			}
-			else if(inbuff[i]=='?')
-			{
-				_questionmark(c);
-			}
-			else if(inbuff[i]=='=')
-			{
-				_equal(c);
-			}
-			else if(inbuff[i]=='_')
-			{
-				_underscore(c);
-			}
-			else if(inbuff[i]==' ')
-			{
-				_space(c);
-			}
-			else if(inbuff[i]=='a' || inbuff[i]=='A')
-			{
-				_a(c);
-			}
-			else if(inbuff[i]=='b' || inbuff[i]=='B')
-			{
-				_b(c);
-			}
-			else if(inbuff[i]=='c' || inbuff[i]=='C')
-			{
-				_c(c);
-			}
-			else if(inbuff[i]=='d' || inbuff[i]=='D')
-			{
-				_d(c);
-			}
-			else if(inbuff[i]=='e' || inbuff[i]=='E')
-			{
-				_e(c);
-			}
-			else if(inbuff[i]=='f' || inbuff[i]=='F')
-			{
-				_f(c);
-			}
-			else if(inbuff[i]=='g' || inbuff[i]=='G')
-			{
-				_g(c);
-			}
-			else if(inbuff[i]=='h' || inbuff[i]=='H')
-			{
-				_h(c);
-			}
-			else if(inbuff[i]=='i' || inbuff[i]=='I')
-			{
-				_i(c);
-			}
-			else if(inbuff[i]=='j' || inbuff[i]=='J')
-			{
-				_j(c);
-			}
-			else if(inbuff[i]=='k' || inbuff[i]=='K')
-			{
-				_k(c);
-			}
-			else if(inbuff[i]=='l' || inbuff[i]=='L')
-			{
-				_l(c);
-			}
-			else if(inbuff[i]=='m' || inbuff[i]=='M')
-			{
-				_m(c);
-			}
-			else if(inbuff[i]=='n' || inbuff[i]=='N')
-			{
-				_n(c);
-			}
-			else if(inbuff[i]=='o' || inbuff[i]=='O')
-			{
-				_o(c);
-			}
-			else if(inbuff[i]=='p' || inbuff[i]=='P')
-			{
-				_p(c);
-			}
-			else if(inbuff[i]=='q' || inbuff[i]=='Q')
-			{
-				_q(c);
-			}
-			else if(inbuff[i]=='r' || inbuff[i]=='R')
-			{
-				_r(c);
-			}
-			else if(inbuff[i]=='s' || inbuff[i]=='S')
-			{
-				_s(c);
-			}
-			else if(inbuff[i]=='t' || inbuff[i]=='T')
-			{
-				_t(c);
-			}
-			else if(inbuff[i]=='u' || inbuff[i]=='U')
-			{
-				_u(c);
-			}
-			else if(inbuff[i]=='v' || inbuff[i]=='V')
-			{
-				_v(c);
-			}
-			else if(inbuff[i]=='w' || inbuff[i]=='W')
-			{
-				_w(c);
-			}
-			else if(inbuff[i]=='x' || inbuff[i]=='X')
-			{
-				_x(c);
-			}
-			else if(inbuff[i]=='y' || inbuff[i]=='Y')
-			{
-				_y(c);
-			}
-			else if(inbuff[i]=='z' || inbuff[i]=='Z')
-			{
-				_z(c);
-			}
-			else
-			{
-				printf("\nunknown char: %c\n",inbuff[i]);
-				return(1);
-			}
+			current_line_length=0;
 
-		}//end for every char of input
+			input_string_position=input_string_position_offset;
 
-		//end of lined up char parts
-		printf("\n");
+			//will break out through handle_line_length
+			while(current_line_length!=break_at && inbuff[input_string_position]!='\0')
+			{
 
-	}//end for every line of char
-	}//end for wrapped lines
+				//backslash used as escape character
+				if(inbuff[input_string_position]=='\\' && escapeMode==0)
+				{
+					escapeMode=1;
+				}
+				else if(inbuff[input_string_position]=='\\')
+				{
+					escapeMode=0;
+					handle_line_length(_backslash,_backslash_w,char_part_line);
+				}
+				// \[ red
+				else if(inbuff[input_string_position]=='[' && escapeMode==1)
+				{
+					escapeMode=0;
+					if(invertColors==0){BG_COL=red;FG_COL=lgray;}
+					else{BG_COL=lgray;FG_COL=red;}
+				}
+				// \{ green
+				else if(inbuff[input_string_position]=='{' && escapeMode==1)
+				{
+					escapeMode=0;
+					if(invertColors==0){BG_COL=green;FG_COL=lgray;}
+					else{BG_COL=lgray;FG_COL=green;}
+				}
+				// \( blue
+				else if(inbuff[input_string_position]=='(' && escapeMode==1)
+				{
+					escapeMode=0;
+					if(invertColors==0){BG_COL=blue;FG_COL=lgray;}
+					else{BG_COL=lgray;FG_COL=blue;}
+				}
+				// \] \} \) end color
+				else if( (inbuff[input_string_position]==']' || inbuff[input_string_position]=='}' || inbuff[input_string_position]==')') 
+					&& escapeMode==1)
+				{
+					escapeMode=0;
+					if(invertColors==0){BG_COL=black;FG_COL=lgray;}
+					else{BG_COL=lgray;FG_COL=black;}
+				}
+				// \< invert
+				else if(inbuff[input_string_position]=='<' && escapeMode==1)
+				{
+					escapeMode=0;
+					invertColors=1;
+					BG_COL=lgray;FG_COL=black;
+				}
+				// \> end invert
+				else if(inbuff[input_string_position]=='>' && escapeMode==1)
+				{
+					escapeMode=0;
+					invertColors=0;
+					BG_COL=black;FG_COL=lgray;
+				}
+				// \a
+				else if(inbuff[input_string_position]=='a' && escapeMode==1)
+				{
+					escapeMode=0;
+					handle_line_length(_line_middle_horizontal,_line_middle_horizontal_w,char_part_line);
+				}
+				// \b
+				else if(inbuff[input_string_position]=='b' && escapeMode==1)
+				{
+					escapeMode=0;
+					handle_line_length(_line_bottom,_line_bottom_w,char_part_line);
+				}
+				//unescaped
+				else if(inbuff[input_string_position]=='[')
+				{
+					handle_line_length(_lbbrace,_lbbrace_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]==']')
+				{
+					handle_line_length(_rbbrace,_rbbrace_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='{')
+				{
+					handle_line_length(_lcbrace,_lcbrace_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='}')
+				{
+					handle_line_length(_rcbrace,_rcbrace_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='(')
+				{
+					handle_line_length(_lbrace,_lbrace_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]==')')
+				{
+					handle_line_length(_rbrace,_rbrace_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='<')
+				{
+					handle_line_length(_lt,_lt_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='>')
+				{
+					handle_line_length(_gt,_gt_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='\'')
+				{
+					handle_line_length(_apos,_apos_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='"')
+				{
+					handle_line_length(_doublequote,_doublequote_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='@')
+				{
+					handle_line_length(_at,_at_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='%')
+				{
+					handle_line_length(_percent,_percent_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='&')
+				{
+					handle_line_length(_amp,_amp_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='$')
+				{
+					handle_line_length(_dollar,_dollar_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='#')
+				{
+					handle_line_length(_hash,_hash_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='|')
+				{
+					handle_line_length(_pipe,_pipe_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='`')
+				{
+					handle_line_length(_backtick,_backtick_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='^')
+				{
+					handle_line_length(_caret,_caret_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='~')
+				{
+					handle_line_length(_tilde,_tilde_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='0')
+				{
+					handle_line_length(_0,_0_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='1')
+				{
+					handle_line_length(_1,_1_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='2')
+				{
+					handle_line_length(_2,_2_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='3')
+				{
+					handle_line_length(_3,_3_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='4')
+				{
+					handle_line_length(_4,_4_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='5')
+				{
+					handle_line_length(_5,_5_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='6')
+				{
+					handle_line_length(_6,_6_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='7')
+				{
+					handle_line_length(_7,_7_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='8')
+				{
+					handle_line_length(_8,_8_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='9')
+				{
+					handle_line_length(_9,_9_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]==':')
+				{
+					handle_line_length(_colon,_colon_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]==';')
+				{
+					handle_line_length(_semicolon,_semicolon_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]==',')
+				{
+					handle_line_length(_comma,_comma_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='.')
+				{
+					handle_line_length(_period,_period_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='+')
+				{
+					handle_line_length(_plus,_plus_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='-')
+				{
+					handle_line_length(_minus,_minus_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='/')
+				{
+					handle_line_length(_slash,_slash_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='*')
+				{
+					handle_line_length(_multiplication,_multiplication_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='!')
+				{
+					handle_line_length(_exclamation,_exclamation_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='?')
+				{
+					handle_line_length(_questionmark,_questionmark_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='=')
+				{
+					handle_line_length(_equal,_equal_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='_')
+				{
+					handle_line_length(_underscore,_underscore_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]==' ')
+				{
+					handle_line_length(_space,_space_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='a' || inbuff[input_string_position]=='A')
+				{
+					handle_line_length(_a,_a_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='b' || inbuff[input_string_position]=='B')
+				{
+					handle_line_length(_b,_b_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='c' || inbuff[input_string_position]=='C')
+				{
+					handle_line_length(_c,_c_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='d' || inbuff[input_string_position]=='D')
+				{
+					handle_line_length(_d,_d_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='e' || inbuff[input_string_position]=='E')
+				{
+					handle_line_length(_e,_e_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='f' || inbuff[input_string_position]=='F')
+				{
+					handle_line_length(_f,_f_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='g' || inbuff[input_string_position]=='G')
+				{
+					handle_line_length(_g,_g_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='h' || inbuff[input_string_position]=='H')
+				{
+					handle_line_length(_h,_h_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='i' || inbuff[input_string_position]=='I')
+				{
+					handle_line_length(_i,_i_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='j' || inbuff[input_string_position]=='J')
+				{
+					handle_line_length(_j,_j_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='k' || inbuff[input_string_position]=='K')
+				{
+					handle_line_length(_k,_k_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='l' || inbuff[input_string_position]=='L')
+				{
+					handle_line_length(_l,_l_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='m' || inbuff[input_string_position]=='M')
+				{
+					handle_line_length(_m,_m_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='n' || inbuff[input_string_position]=='N')
+				{
+					handle_line_length(_n,_n_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='o' || inbuff[input_string_position]=='O')
+				{
+					handle_line_length(_o,_o_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='p' || inbuff[input_string_position]=='P')
+				{
+					handle_line_length(_p,_p_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='q' || inbuff[input_string_position]=='Q')
+				{
+					handle_line_length(_q,_q_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='r' || inbuff[input_string_position]=='R')
+				{
+					handle_line_length(_r,_r_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='s' || inbuff[input_string_position]=='S')
+				{
+					handle_line_length(_s,_s_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='t' || inbuff[input_string_position]=='T')
+				{
+					handle_line_length(_t,_t_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='u' || inbuff[input_string_position]=='U')
+				{
+					handle_line_length(_u,_u_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='v' || inbuff[input_string_position]=='V')
+				{
+					handle_line_length(_v,_v_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='w' || inbuff[input_string_position]=='W')
+				{
+					handle_line_length(_w,_w_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='x' || inbuff[input_string_position]=='X')
+				{
+					handle_line_length(_x,_x_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='y' || inbuff[input_string_position]=='Y')
+				{
+					handle_line_length(_y,_y_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='z' || inbuff[input_string_position]=='Z')
+				{
+					handle_line_length(_z,_z_w,char_part_line);
+				}
+				else
+				{
+					printf("\nunknown char: %c\n",inbuff[input_string_position]);
+					return(1);
+				}
+
+				input_string_position++;
+
+			}//end while line_complete=0
+
+			//end of lined up char parts
+			printf("\n");
+
+		}//end for every shout char_part_line
+
+		if(wrapping==0)
+		{
+			finished=1;
+		}
+		else
+		{
+			input_string_position_offset=input_string_position - 1;
+		}
+
+	}//end while finished==0
 
 	return 0;
 } //end process

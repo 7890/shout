@@ -69,7 +69,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 * fg 47 (light gray)
 */
 
-static double version=0.61;
+static double version=0.7;
 
 int black=40;
 int lgray=47;
@@ -261,13 +261,17 @@ int process()
 	int input_string_position_offset=0;
 	int input_string_position=0;
 
+	int BG_COL_reset=black;
+	int FG_COL_reset=lgray;
+
 	while(finished==0)
 	{
 		//for every line of a shout char consisting of 8 lines
 		for(int char_part_line=1;char_part_line<=8;char_part_line++)
 		{
 			//reset colors
-			BG_COL=black;FG_COL=lgray;
+			BG_COL=BG_COL_reset;
+			FG_COL=FG_COL_reset;
 
 			current_line_length=0;
 
@@ -627,6 +631,9 @@ int process()
 
 			//end of lined up char parts
 			printf("\n");
+			//reset inversion (\<)
+			invertColors=0;
+
 
 		}//end for every shout char_part_line
 
@@ -637,6 +644,10 @@ int process()
 		else
 		{
 			input_string_position_offset=input_string_position - 1;
+
+			//remember current "reset" color for new (wrapped) line
+			BG_COL_reset=BG_COL;
+			FG_COL_reset=FG_COL;
 		}
 
 	}//end while finished==0

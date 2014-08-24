@@ -949,6 +949,38 @@ int _p_w()
 {
 	return 8;
 }
+void _parallelogram(int line)
+{
+/* ################### */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ######............# */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
+/* #####............## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
+/* ####............### */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ###............#### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ##............##### */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* #............###### */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ################### */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+
+}
+int _parallelogram_w()
+{
+	return 19;
+}
+void _parallelogram_t(int line)
+{
+/* ################### */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ######.......#....# */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
+/* #####.....######### */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ####.......#....### */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ###.......#....#### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ##........######### */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* #............###### */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ################### */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+
+}
+int _parallelogram_t_w()
+{
+	return 19;
+}
 void _percent(int line)
 {
 /* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}

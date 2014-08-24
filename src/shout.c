@@ -1,7 +1,7 @@
 /*
 shout.c
 part of shout
-Copyright (C) 2013 Thomas Brand
+Copyright (C) 2013 - 2014 Thomas Brand
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -28,12 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //tb/130701/130703/130705/130715/130716/131130/140820
 /*
 * output large colored alphanumeric characters in terminal
-* supports partial highlight  \[,\{,\(
-# supports inverse colors \<
-* some terminals will not display output correctly
-* output is borked if wider than terminal
-* only single line supported
-* only limited symbols (mainly digits) supported
+* supports a limited color palette for foreground and background colors
 *
 * compile:
 * $ gcc -c digits.c -o digits.o -std=gnu99; \
@@ -67,9 +62,34 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 *
 * bg 44 (blue)
 * fg 47 (light gray)
+*
+* 
+* new coloring strategy:
+
+* set foreground and background individually
+
+* default background: black
+* default foreground: lgray
+* 
+* colors apply to foreground color by default
+* 
+* available colors
+
+* \R red
+* \G green
+* \B blue
+* \Y gray
+* \K black
+
+* \_ prepended to colors sets background color
+
+* \| reset style
+
+* \/ invert style
+
 */
 
-static double version=0.71;
+static double version=0.8;
 
 int black=40;
 int lgray=47;
@@ -77,9 +97,10 @@ int red=41;
 int green=42;
 int blue=44;
 
-int invertColors=0;
-
 int escapeMode=0;
+//0: foreground 1: background
+int setColorMode=0;
+int invertColors=0;
 
 int clearOnNewLine=0;
 
@@ -141,20 +162,37 @@ int main(int argc, char **argv)
 	{
 		printf("syntax: shout '<string>' (<clear> (<cursor off> (<clear newline>)))\n\n");
 		printf("supported characters for string:\n");
-		printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéà (plus [a-z], [A-Z] and space)\n\n");
+		printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéà (plus [a-Z] and space)\n");
+		printf("(lowercase letters will be printed uppercase)\n\n");
 		printf("if <string> is '-', stdin will be used\n");
 		printf("if <clear> is present and equal '1', screen will be cleared.\n");
 		printf("if <cursor off> is present and equal '1', cursor will be hidden.\n");
-		printf("if <clear newline> is present and equal '1', the screen will be cleared for every new line (useful for stdin input).\n\n");
-		printf("parts of a string can be highlighted by prefixing or enclosing it with\n");
-		printf("\\[ (red) \\], \\{ (green) \\} or \\( (blue) \\). ");
-		printf("to invert colors, enclose in \\<\\>.\n");
-		printf("the control chars [,{,( or < must be escaped with backslash (\\).\n\n");
+		printf("if <clear newline> is present and equal '1', the screen will be cleared for every new line\n(this is useful for stdin input).\n\n");
+
+		printf("foreground and background colors can be set using escape sequences.\n");
+
+		printf("the default colors are: FG: gray  BG: black\n");
+		printf("available colors:\n");
+
+
+		printf("   \\R red\n");
+		printf("   \\G green\n");
+		printf("   \\B blue\n");
+		printf("   \\Y gray\n");
+		printf("   \\K black\n");
+
+		printf("   \\_ prepended to colors sets background color\n");
+
+		printf("   \\| reset style\n");
+
+		printf("   \\/ invert style\n\n");
+
 		printf("examples: shout 1\n"); 
-		printf("          shout '123' 1; shout '\\[1\\{2\\}:\\(3\\)!'\n");
-		printf("          shout '1\\<2\\>3\\<\\[4\\]?\\(5\\>'\n");
-		printf("          shout '/\\\\[{('\n");
-		printf("          shout '\\<a\\[b\\(c'\n\n");
+		printf("          shout \"123\" 1; shout \"\\R1\\G2\\B3\"\n");
+		printf("          shout \"\\/\\R1\\G2\\B3\"\n");
+		printf("          shout \"\\/\\R1\\G2\\B3\\|1\\/2\\|3\\_\\R1\\_\\G\\R2\\_\\B3\"\n");
+		printf("          printf \"a\\nb\\nc\\n\" | shout - 1\n\n");
+
 		printf("shout --version\n");
 		printf("shout --info\n");
 		return(0);
@@ -292,49 +330,110 @@ int process()
 					escapeMode=0;
 					handle_line_length(_backslash,_backslash_w,char_part_line);
 				}
-				// \[ red
-				else if(inbuff[input_string_position]=='[' && escapeMode==1)
+				// \R red
+				else if(inbuff[input_string_position]=='R' && escapeMode==1)
 				{
 					escapeMode=0;
-					if(invertColors==0){BG_COL=red;FG_COL=lgray;}
-					else{BG_COL=lgray;FG_COL=red;}
+
+					//0: foreground 1: background
+					if(setColorMode==0)
+					{
+						FG_COL=red;
+					}
+					else
+					{
+						BG_COL=red;
+						//reset to set fg color
+						setColorMode=0;
+					}
 				}
-				// \{ green
-				else if(inbuff[input_string_position]=='{' && escapeMode==1)
+				// \G green
+				else if(inbuff[input_string_position]=='G' && escapeMode==1)
 				{
 					escapeMode=0;
-					if(invertColors==0){BG_COL=green;FG_COL=lgray;}
-					else{BG_COL=lgray;FG_COL=green;}
+
+					if(setColorMode==0)
+					{
+						FG_COL=green;
+					}
+					else
+					{
+						BG_COL=green;
+						setColorMode=0;
+					}
 				}
-				// \( blue
-				else if(inbuff[input_string_position]=='(' && escapeMode==1)
+				// \B blue
+				else if(inbuff[input_string_position]=='B' && escapeMode==1)
 				{
 					escapeMode=0;
-					if(invertColors==0){BG_COL=blue;FG_COL=lgray;}
-					else{BG_COL=lgray;FG_COL=blue;}
+
+					if(setColorMode==0)
+					{
+						FG_COL=blue;
+					}
+					else
+					{
+						BG_COL=blue;
+						setColorMode=0;
+					}
 				}
-				// \] \} \) end color
-				else if( (inbuff[input_string_position]==']' || inbuff[input_string_position]=='}' || inbuff[input_string_position]==')') 
-					&& escapeMode==1)
+				// \Y gray
+				else if(inbuff[input_string_position]=='Y' && escapeMode==1)
 				{
 					escapeMode=0;
-					if(invertColors==0){BG_COL=black;FG_COL=lgray;}
-					else{BG_COL=lgray;FG_COL=black;}
+
+					//0: foreground 1: background
+					if(setColorMode==0)
+					{
+						FG_COL=lgray;
+					}
+					else
+					{
+						BG_COL=lgray;
+						setColorMode=0;
+					}
 				}
-				// \< invert
-				else if(inbuff[input_string_position]=='<' && escapeMode==1)
+				// \K black
+				else if(inbuff[input_string_position]=='K' && escapeMode==1)
 				{
 					escapeMode=0;
-					invertColors=1;
-					BG_COL=lgray;FG_COL=black;
+
+					//0: foreground 1: background
+					if(setColorMode==0)
+					{
+						FG_COL=black;
+					}
+					else
+					{
+						BG_COL=black;
+						setColorMode=0;
+					}
 				}
-				// \> end invert
-				else if(inbuff[input_string_position]=='>' && escapeMode==1)
+				// \_ set bg color
+				else if(inbuff[input_string_position]=='_' && escapeMode==1)
 				{
 					escapeMode=0;
-					invertColors=0;
-					BG_COL=black;FG_COL=lgray;
+					setColorMode=1;
 				}
+				else if(inbuff[input_string_position]=='|' && escapeMode==1)
+				{
+					escapeMode=0;
+
+					FG_COL=lgray;
+					BG_COL=black;
+				}
+				// \/ invert style
+				else if(inbuff[input_string_position]=='/' && escapeMode==1)
+				{
+					escapeMode=0;
+					int tmp=FG_COL;
+					FG_COL=BG_COL;
+					BG_COL=tmp;
+				}
+
+
+
+
 				// \a
 				else if(inbuff[input_string_position]=='a' && escapeMode==1)
 				{
@@ -346,6 +445,12 @@ int process()
 				{
 					escapeMode=0;
 					handle_line_length(_line_bottom,_line_bottom_w,char_part_line);
+				}
+				// \c
+				else if(inbuff[input_string_position]=='c' && escapeMode==1)
+				{
+					escapeMode=0;
+					handle_line_length(_parallelogram,_parallelogram_w,char_part_line);
 				}
 				//unescaped
 				else if(inbuff[input_string_position]=='[')

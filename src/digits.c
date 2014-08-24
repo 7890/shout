@@ -501,6 +501,22 @@ int _dollar_w()
 {
 	return 8;
 }
+void _doppel_s(int line)
+{
+/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* #.....## */	if(line==0 || line==2){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
+/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
+/* #..#..## */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
+/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
+/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
+/* #..#..## */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
+/* #..##### */	if(line==0 || line==8){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+
+}
+int _doppel_s_w()
+{
+	return 8;
+}
 void _doublequote(int line)
 {
 /* ##..#..# */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
@@ -962,22 +978,6 @@ void _parallelogram(int line)
 
 }
 int _parallelogram_w()
-{
-	return 19;
-}
-void _parallelogram_t(int line)
-{
-/* ################### */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######.......#....# */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####.....######### */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####.......#....### */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###.......#....#### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##........######### */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #............###### */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ################### */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _parallelogram_t_w()
 {
 	return 19;
 }

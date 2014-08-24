@@ -162,7 +162,7 @@ int main(int argc, char **argv)
 	{
 		printf("syntax: shout '<string>' (<clear> (<cursor off> (<clear newline>)))\n\n");
 		printf("supported characters for string:\n");
-		printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéà (plus [a-Z] and space)\n");
+		printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéàß (plus [a-Z] and space)\n");
 		printf("(lowercase letters will be printed uppercase)\n\n");
 		printf("if <string> is '-', stdin will be used\n");
 		printf("if <clear> is present and equal '1', screen will be cleared.\n");
@@ -287,7 +287,7 @@ void handle_line_length(
 ////////////////////////////////////////////////////////////////////
 int process()
 {
-	//printf("%d %d\n",inbuff[0],inbuff[1]);
+	printf("%d %d\n",inbuff[0],inbuff[1]);
 
 	//get term width / cols
 	//http://stackoverflow.com/questions/1022957/getting-terminal-width-in-c
@@ -763,6 +763,11 @@ int process()
 					else if(inbuff[input_string_position+1]==-89)
 					{
 						handle_line_length(_ccedille,_ccedille_w,char_part_line);
+					}
+					//ß
+					else if(inbuff[input_string_position+1]==-97)
+					{
+						handle_line_length(_doppel_s,_doppel_s_w,char_part_line);
 					}
 					else
 					{

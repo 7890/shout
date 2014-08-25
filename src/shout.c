@@ -89,7 +89,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-static double version=0.8;
+static double version=0.81;
 
 int black=40;
 int lgray=47;
@@ -162,7 +162,8 @@ int main(int argc, char **argv)
 	{
 		printf("syntax: shout '<string>' (<clear> (<cursor off> (<clear newline>)))\n\n");
 		printf("supported characters for string:\n");
-		printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéàß (plus [a-Z] and space)\n");
+		printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéàßœæëÿïêôûâî\n");
+		printf("(plus [a-Z] and space)\n");
 		printf("(lowercase letters will be printed uppercase)\n\n");
 		printf("if <string> is '-', stdin will be used\n");
 		printf("if <clear> is present and equal '1', screen will be cleared.\n");
@@ -173,7 +174,6 @@ int main(int argc, char **argv)
 
 		printf("the default colors are: FG: gray  BG: black\n");
 		printf("available colors:\n");
-
 
 		printf("   \\R red\n");
 		printf("   \\G green\n");
@@ -287,7 +287,7 @@ void handle_line_length(
 ////////////////////////////////////////////////////////////////////
 int process()
 {
-	//printf("%d %d\n",inbuff[0],inbuff[1]);
+	printf("%d %d\n",inbuff[0],inbuff[1]);
 
 	//get term width / cols
 	//http://stackoverflow.com/questions/1022957/getting-terminal-width-in-c
@@ -727,6 +727,20 @@ int process()
 				}
 
 				//multibyte
+				else if(inbuff[input_string_position] == -59)
+				{
+					//Ÿ
+					if(inbuff[input_string_position+1]==-72)
+					{
+						handle_line_length(_yuml,_yuml_w,char_part_line);
+					}
+					//œ
+					else if(inbuff[input_string_position+1]==-109)
+					{
+						handle_line_length(_oe,_oe_w,char_part_line);
+					}
+				}
+				//multibyte
 				else if(inbuff[input_string_position] == -61)
 				{
 					//ä Ä
@@ -769,6 +783,51 @@ int process()
 					{
 						handle_line_length(_doppel_s,_doppel_s_w,char_part_line);
 					}
+					//ë Ë
+					else if(inbuff[input_string_position+1]==-85 || inbuff[input_string_position+1]==-117)
+					{
+						handle_line_length(_euml,_euml_w,char_part_line);
+					}
+					//ÿ
+					else if(inbuff[input_string_position+1]==-65)
+					{
+						handle_line_length(_yuml,_yuml_w,char_part_line);
+					}
+					//ï Ï
+					else if(inbuff[input_string_position+1]==-81 || inbuff[input_string_position+1]==-113)
+					{
+						handle_line_length(_iuml,_iuml_w,char_part_line);
+					}
+					//ê Ê
+					else if(inbuff[input_string_position+1]==-86 || inbuff[input_string_position+1]==-118)
+					{
+						handle_line_length(_ecircumflex,_ecircumflex_w,char_part_line);
+					}
+					//ô Ô
+					else if(inbuff[input_string_position+1]==-76 || inbuff[input_string_position+1]==-108)
+					{
+						handle_line_length(_ocircumflex,_ocircumflex_w,char_part_line);
+					}
+					//û Û
+					else if(inbuff[input_string_position+1]==-69 || inbuff[input_string_position+1]==-101)
+					{
+						handle_line_length(_ucircumflex,_ucircumflex_w,char_part_line);
+					}
+					//â Â
+					else if(inbuff[input_string_position+1]==-94 || inbuff[input_string_position+1]==-126)
+					{
+						handle_line_length(_acircumflex,_acircumflex_w,char_part_line);
+					}
+					//î Î
+					else if(inbuff[input_string_position+1]==-82 || inbuff[input_string_position+1]==-114)
+					{
+						handle_line_length(_icircumflex,_icircumflex_w,char_part_line);
+					}
+					//æ
+					else if(inbuff[input_string_position+1]==-90)
+					{
+						handle_line_length(_ae,_ae_w,char_part_line);
+					}
 					else
 					{
 						printf("x");
@@ -776,6 +835,7 @@ int process()
 
 					if(line_complete==0){input_string_position++;}
 				}
+				//multibyte
 				else if(inbuff[input_string_position] == -62)
 				{
 					//°

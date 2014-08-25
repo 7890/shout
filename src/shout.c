@@ -287,7 +287,7 @@ void handle_line_length(
 ////////////////////////////////////////////////////////////////////
 int process()
 {
-	printf("%d %d\n",inbuff[0],inbuff[1]);
+	//printf("%d %d\n",inbuff[0],inbuff[1]);
 
 	//get term width / cols
 	//http://stackoverflow.com/questions/1022957/getting-terminal-width-in-c

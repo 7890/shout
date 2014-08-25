@@ -19,100 +19,114 @@ man page
 --------
 
 ```
-SHOUT(1)                                                                              SHOUT(1)
-
-
-
 NAME
        shout - prints large alphanumeric characters to terminal
 
 SYNOPSIS
-       shout string [clear_screen [cursor_off]]
-       shout [-h | --help | -v | --version | -i | --info ] 
+       shout OPTIONS <string>
 
 DESCRIPTION
-       shout takes a string argument and prints it to the terminal using color escape
-       sequences (VT100 compatible).
+       shout takes a string argument and prints it to the terminal as
+       pixel-style symbols using color escape sequences.
 
        The following characters can be printed:
 
-       0123456789+-=_.,:;!?/\[](){}abcdefghijklmnopqrstuvwxyz* (and space)
+       0123456789+-=_.,:;!?|%&$@#^~/\[](){}<>*°§çäöüèéàßœæëÿïêôûâî"'`*
+       (plus [a-Z] and space) lowercase letters will be printed
+       uppercase
 
-       Prefixed with the escape character \ (backslash), the following characters or tags are
-       interpreted for highlighting or inverting:
+       If <string> is -, stdin will be used
 
-       \[...\]: background red
+       Foreground and background colors can be set individually. The
+       following escape sequences are interpreted for color styling:
 
-       \{...\}: background green
+       \R: red
 
-       \(...\): background blue
+       \G: green
 
-       \<...\>: invert the foreground/background color scheme
+       \B: blue
 
-       Any input enclosed with these characters is highlighted. Highlighting can not be
-       nested. On closing the hightlight, the color scheme reverts to standard (light gray on
-       black). Simplified notation is possible by using only the start tag, see examples.
-       Strings enclosed in \<\> can contain highlighted parts.
+       \Y: gray
 
-       If the terminal width is not wide enough for displaying the input on one line, the
-       output will look weird.
+       \K: black
 
-       shout version is 0.3
+       \_: prepended to colors sets background color
+
+       \|: reset style
+
+       \/: invert the foreground/background color scheme
+
+       If the terminal width is not wide enough for displaying the input
+       on one line, the output will be wrapped.
+
+       shout version is 0.9
 
 OPTIONS
-       -h, --help
+       --help
            Show help (if given as only argument)
 
-       -v, --version
+       --version
            Show version (if given as only argument)
 
-       -i, --info
+       --info
            Show info (if given as only argument)
 
-       clear_screen
-           If equal 1, the screen will be cleared and cursor put to top left before output
-           takes place
+       --clear
+           If equal 1, the screen will be cleared and cursor put to top
+           left before output takes place
 
-       cursor_off
-           If equal 1, the cursor will be hidden (stays hidden after program exits)
+       --clearnl
+           If equal 1, the screen will be cleared for every new input
+           line (useful in conjuction with -)
+
+       --nocursor
+           If equal 1, the cursor will be hidden (stays hidden after
+           program exits)
 
 EXIT STATUS
        0
            Success
 
        1
-           No input string given
+           Wrong arguments, no input string given
 
 EXAMPLES
        Simple shout
            $ shout "123 abc"
 
-       Use special symbols
-           $ shout "+-?()[]{}"
+       Use some symbols
+           $ shout "%?@#é"
 
-       Highlight part in string
-           $ shout "1\[2\]3"
+       Highlight a part in string by temporary inverting (and resetting)
+       style
+           $ shout "1\/2\|3"
 
-       Colorful (simplified notation, no closing tags)
-           $ shout "\[ \{ \( "
+       Colorful test
+           $ shout "\R1\G2\B3"
 
-       Partial color inversion in string
-           $ shout "123\<4567"
+       Setting background red and foreground green
+           $ shout "\_\R\G1"
 
-       Highlighted parts inside inversion
-           $ shout "\[5\(6\) \<\[5\(6\>"
+       The same inverted
+           $ shout "\_\R\G\/1"
 
        Using options, clear screen before print
-           $ shout "123" 1
+           $ shout --clear "123"
 
-       Using options, hide cursor
-           $ shout "123" 0 1
+       Using options, hide cursor (use command reset to reset terminal)
+           $ shout --nocursor "123"
 
-       Multiline output
-           $ shout 123; shout 456
+       Read from stdin
+           $ echo "abc" | shout -
+
+       Using options, clear screen for every new line (input from stdin)
+           $ shout --clearnl -
+
+       Multiline from stdin
+           $ printf "1\n2\n3\n" | shout -
 
 BUGS
-       See the BUGS file in the source distribution.
+       Please report any bugs to https://github.com/7890/shout/issues
 
 AUTHOR
        shout was written by Thomas Brand <tom@trellis.ch>
@@ -124,10 +138,12 @@ SEE ALSO
        osctermd(1)
 
 COPYING
-       Copyright (C) 2013 Thomas Brand. Free use of this software is granted under the terms
-       of the GNU General Public License (GPL).
+       Copyright (C) 2013 - 2014 Thomas Brand. Free use of this software
+       is granted under the terms of the GNU General Public License
+       (GPL).
 
 
-
-                                          07/15/2013                                  SHOUT(1)
+                               08/25/2014                       SHOUT(1)
 ```
+
+PAGER="cat" man shout

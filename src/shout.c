@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <getopt.h>
 
 #include "digits.h"
 
@@ -89,7 +90,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-static double version=0.81;
+static double version=0.9;
 
 int black=40;
 int lgray=47;
@@ -102,12 +103,14 @@ int escapeMode=0;
 int setColorMode=0;
 int invertColors=0;
 
+//options
+int clearOnStart=0;
 int clearOnNewLine=0;
+int cursorOff=0;
 
 #define BUFFSIZE 256
 char inbuff[BUFFSIZE];
 
-///////
 int columns = 0;
 int current_line_length=0;
 int line_complete=0;
@@ -115,6 +118,62 @@ int wrapping=0;
 int break_at=-1;
 
 int process();
+
+void print_help()
+{
+	printf("syntax: shout (options) <string>\n\n");
+	printf("supported characters for <string>:\n");
+	printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéàßœæëÿïêôûâî\n");
+	printf("(plus [a-Z] and space)\n");
+	printf("lowercase letters will be printed uppercase\n\n");
+	printf("if <string> is '-', stdin will be used\n\n");
+
+	printf("options:\n");
+	printf("   --clear	# screen will be cleared (output starting at top)\n");
+	printf("   --clearnl    # screen will be cleared for every new line\n");
+	printf("   --nocursor	# cursor will be hidden\n\n");
+
+	printf("foreground and background colors can be set using escape sequences.\n");
+	printf("the default colors are: FG: gray  BG: black\n\n");
+	printf("available colors:\n");
+
+	printf("   \\R red\n");
+	printf("   \\G green\n");
+	printf("   \\B blue\n");
+	printf("   \\Y gray\n");
+	printf("   \\K black\n\n");
+
+	printf("   \\_ prepended to colors sets background color\n");
+	printf("   \\| reset style\n");
+	printf("   \\/ invert style\n\n");
+
+	printf("examples:\n");
+	printf("   shout 1\n"); 
+	printf("   shout --clear \"123\"; shout \"\\R1\\G2\\B3\"\n");
+	printf("   shout \"\\/\\R1\\G2\\B3\"\n");
+	printf("   shout \"\\/\\R1\\G2\\B3\\|1\\/2\\|3\\_\\R1\\_\\G\\R2\\_\\B3\"\n");
+	printf("   printf \"a\\nb\\nc\\n\" | shout --clear -\n");
+	printf("   shout --clear --clearnl -\n\n");
+
+	printf("shout --version\n");
+	printf("shout --info\n");
+	exit(0);
+}
+
+void print_info()
+{
+	printf("shout version %.2f, Copyright (C) 2013 - 2014  Thomas Brand\n",version);
+	printf("shout comes with ABSOLUTELY NO WARRANTY;\n");
+	printf("This is free software, and you are welcome to redistribute it\n");
+	printf("under certain conditions; see COPYING for details.\n");
+	exit(0);
+}
+
+void print_version()
+{
+	printf("%.2f\n",version);
+	exit(0);
+}
 
 int main(int argc, char **argv)
 {
@@ -137,74 +196,74 @@ int main(int argc, char **argv)
 	printf("cols: %d",cols);
 */
 
-	if(argc<2)
+	//command line options parsing
+	//http://www.gnu.org/software/libc/manual/html_node/Using-Getopt.html
+	static struct option long_options[] =
 	{
-		printf("need param, see --help\n");
-		return(1);
-	}
+		{"help",	no_argument,	    0, 'h'},
+		{"info",	no_argument,	    0, 'i'},
+		{"version",	no_argument,	    0, 'v'},
+		{"clear",       no_argument,    &clearOnStart, 1},
+		{"clearnl",     no_argument,    &clearOnNewLine, 1},
+		{"nocursor",    no_argument,    &cursorOff, 1},
+		{0, 0, 0, 0}
+	};
 
-	if(strcmp(argv[1],"--version")==0 || strcmp(argv[1],"-v")==0)
-	{
-		printf("%.2f\n",version);
-		return(0);
-	}
+        if (argc - optind < 1)
+        {
+                fprintf (stderr, "Missing arguments, try --help.\n\n");
+                exit(1);
+        }
 
-	if(strcmp(argv[1],"--info")==0 || strcmp(argv[1],"-i")==0)
-	{
-		printf("shout version %.2f, Copyright (C) 2013 - 2014  Thomas Brand\n",version);
-		printf("shout comes with ABSOLUTELY NO WARRANTY;\n");
-		printf("This is free software, and you are welcome to redistribute it\n");
-		printf("under certain conditions; see COPYING for details.\n");
-		return(0);
-	}
+        int opt;
+        //do until command line options parsed
+        while (1)
+        {
+                /* getopt_long stores the option index here. */
+                int option_index = 0;
 
-	if(strcmp(argv[1],"--help")==0 || strcmp(argv[1],"-h")==0)
-	{
-		printf("syntax: shout '<string>' (<clear> (<cursor off> (<clear newline>)))\n\n");
-		printf("supported characters for string:\n");
-		printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéàßœæëÿïêôûâî\n");
-		printf("(plus [a-Z] and space)\n");
-		printf("(lowercase letters will be printed uppercase)\n\n");
-		printf("if <string> is '-', stdin will be used\n");
-		printf("if <clear> is present and equal '1', screen will be cleared.\n");
-		printf("if <cursor off> is present and equal '1', cursor will be hidden.\n");
-		printf("if <clear newline> is present and equal '1', the screen will be cleared for every new line\n(this is useful for stdin input).\n\n");
+                opt = getopt_long (argc, argv, "", long_options, &option_index);
 
-		printf("foreground and background colors can be set using escape sequences.\n");
+                /* Detect the end of the options. */
+                if (opt == -1)
+                {
+                        break;
+                }
+                switch (opt)
+                {
+                        case 0:
+                         /* If this option set a flag, do nothing else now. */
+                        if (long_options[option_index].flag != 0)
+                        {
+                                break;
+                        }
+                        case 'h':
+                                print_help();
+                                break;
+                        case 'i':
+                                print_info();
+                                break;
+                        case 'v':
+                                print_version();
+                                break;
+                        default:
+                                break;
+                 } //end switch op
+        }//end while(1)
 
-		printf("the default colors are: FG: gray  BG: black\n");
-		printf("available colors:\n");
+        //remaining non optional parameter: text string to display
+        if(argc-optind != 1)
+        {
+                fprintf (stderr, "Wrong arguments, try --help.\n\n");
+                exit(1);
+        }
 
-		printf("   \\R red\n");
-		printf("   \\G green\n");
-		printf("   \\B blue\n");
-		printf("   \\Y gray\n");
-		printf("   \\K black\n");
-
-		printf("   \\_ prepended to colors sets background color\n");
-
-		printf("   \\| reset style\n");
-
-		printf("   \\/ invert style\n\n");
-
-		printf("examples: shout 1\n"); 
-		printf("          shout \"123\" 1; shout \"\\R1\\G2\\B3\"\n");
-		printf("          shout \"\\/\\R1\\G2\\B3\"\n");
-		printf("          shout \"\\/\\R1\\G2\\B3\\|1\\/2\\|3\\_\\R1\\_\\G\\R2\\_\\B3\"\n");
-		printf("          printf \"a\\nb\\nc\\n\" | shout - 1\n\n");
-
-		printf("shout --version\n");
-		printf("shout --info\n");
-		return(0);
-	}
-
-	if(argc>2 && argv[2][0]=='1')
+	if(clearOnStart==1)
 	{
 		//reset: clear screen, go top left
 		printf("\ec");
 	}
-
-	if(argc>3 && argv[3][0]=='1')
+	if(cursorOff==1)
 	{
 		//hide cursor
 		printf("\e[?25l");
@@ -215,14 +274,8 @@ int main(int argc, char **argv)
 		printf("\e[?25h");
 	}
 
-	if(argc>4 && argv[4][0]=='1')
-	{
-		//clear screen for every new line
-		clearOnNewLine=1;
-	}
-
 	//read from stdin, write to inbuff
-	if(strcmp(argv[1],"-")==0)
+	if(strcmp(argv[optind],"-")==0)
 	{
 		char c;
 		char* nl="\n";
@@ -253,7 +306,7 @@ int main(int argc, char **argv)
 	else
 	{
 		//copy argument string to inbuff
-		strncpy(inbuff, argv[1], (unsigned int)strlen(argv[1]));
+		strncpy(inbuff, argv[optind], (unsigned int)strlen(argv[optind]));
 		return process();
 	}
 	//printf("%u\n",(unsigned int)strlen(inbuff));

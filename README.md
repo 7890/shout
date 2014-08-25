@@ -13,7 +13,21 @@ Install on Linux
   ./shout 123
   #sudo make install
   #will install to /usr/local/bin, /usr/local/share/man/man1
+
+  #alternatively use a binary package from dist/
 ```
+
+How does shout differ from figlet?
+----------------------------------
+
+[figlet](ftp://ftp.figlet.org/pub/figlet/README) is a well-known tool.
+It supports many fonts and powerful display options like "smushing".
+The fonts are made up of character symbols. The difference of shout vs. 
+figlet output is shown best with an image:
+
+![shout / figlet comparison](doc/shout_vs_figlet.png?raw=true)
+
+Please note, shout has just one built-in font at this time.
 
 man page
 --------

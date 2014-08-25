@@ -20,7 +20,7 @@ Install on Linux
 How does shout differ from figlet?
 ----------------------------------
 
-[figlet](ftp://ftp.figlet.org/pub/figlet/README) is a well-known tool.
+figlet (ftp://ftp.figlet.org/pub/figlet/README) is a well-known tool.
 It supports many fonts and powerful display options like "smushing".
 The fonts are made up of character symbols. The difference of shout vs. 
 figlet output is shown best with an image:

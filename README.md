@@ -1,7 +1,7 @@
 shout - alphanumeric terminal chars
 ===================================
 
-![shout example 1](doc/shout3.png?raw=true)
+![shout example 1](doc/shout4.png?raw=true)
 
 Install on Linux
 ----------------

@@ -725,6 +725,22 @@ int _gt_w()
 {
 	return 8;
 }
+void _gte(int line)
+{
+/* ###..### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ####..## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
+/* #####..# */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
+/* #....... */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
+/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* #....... */	if(line==0 || line==6){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
+/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+
+}
+int _gte_w()
+{
+	return 8;
+}
 void _h(int line)
 {
 /* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
@@ -949,6 +965,22 @@ int _lt_w()
 {
 	return 8;
 }
+void _lte(int line)
+{
+/* ###..### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ##..#### */	if(line==0 || line==2){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* #..##### */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* .......# */	if(line==0 || line==4){fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
+/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* .......# */	if(line==0 || line==6){fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
+/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+
+}
+int _lte_w()
+{
+	return 8;
+}
 void _m(int line)
 {
 /* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
@@ -965,6 +997,22 @@ int _m_w()
 {
 	return 8;
 }
+void _mgt(int line)
+{
+/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* #.##.### */	if(line==0 || line==3){bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ##.##.## */	if(line==0 || line==4){bg(1);bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);bg(1);nl_(line);}
+/* ###.##.# */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
+/* ##.##.## */	if(line==0 || line==6){bg(1);bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);bg(1);nl_(line);}
+/* #.##.### */	if(line==0 || line==7){bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+
+}
+int _mgt_w()
+{
+	return 8;
+}
 void _minus(int line)
 {
 /* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
@@ -978,6 +1026,22 @@ void _minus(int line)
 
 }
 int _minus_w()
+{
+	return 8;
+}
+void _mlt(int line)
+{
+/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ###.##.# */	if(line==0 || line==3){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
+/* ##.##.## */	if(line==0 || line==4){bg(1);bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);bg(1);nl_(line);}
+/* #.##.### */	if(line==0 || line==5){bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
+/* ##.##.## */	if(line==0 || line==6){bg(1);bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);bg(1);nl_(line);}
+/* ###.##.# */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
+/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+
+}
+int _mlt_w()
 {
 	return 8;
 }

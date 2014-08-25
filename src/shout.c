@@ -90,7 +90,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-static double version=0.9;
+static double version=0.91;
 
 int black=40;
 int lgray=47;
@@ -123,7 +123,7 @@ void print_help()
 {
 	printf("syntax: shout (options) <string>\n\n");
 	printf("supported characters for <string>:\n");
-	printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéàßœæëÿïêôûâî\n");
+	printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéàßœæëÿïêôûâî≤≥«»\n");
 	printf("(plus [a-Z] and space)\n");
 	printf("lowercase letters will be printed uppercase\n\n");
 	printf("if <string> is '-', stdin will be used\n\n");
@@ -340,7 +340,7 @@ void handle_line_length(
 ////////////////////////////////////////////////////////////////////
 int process()
 {
-	//printf("%d %d\n",inbuff[0],inbuff[1]);
+	//printf("%d %d %d\n",inbuff[0],inbuff[1],inbuff[2]);
 
 	//get term width / cols
 	//http://stackoverflow.com/questions/1022957/getting-terminal-width-in-c
@@ -792,6 +792,12 @@ int process()
 					{
 						handle_line_length(_oe,_oe_w,char_part_line);
 					}
+					else
+					{
+						printf("x");
+					}
+
+					if(line_complete==0){input_string_position++;}
 				}
 				//multibyte
 				else if(inbuff[input_string_position] == -61)
@@ -901,12 +907,46 @@ int process()
 					{
 						handle_line_length(_section,_section_w,char_part_line);
 					}
+					//«
+					else if(inbuff[input_string_position+1]==-85)
+					{
+						handle_line_length(_mlt,_mlt_w,char_part_line);
+					}
+					//»
+					else if(inbuff[input_string_position+1]==-69)
+					{
+						handle_line_length(_mgt,_mgt_w,char_part_line);
+					}
 					else
 					{
 						printf("x");
 					}
 
 					if(line_complete==0){input_string_position++;}
+				}
+				//multibyte 3!
+				//echo -n "≥" | xxd
+				else if(inbuff[input_string_position] == -30 && inbuff[input_string_position+1] == -119 )
+				{
+					//≤
+					if(inbuff[input_string_position+2]==-92)
+					{
+						handle_line_length(_lte,_lte_w,char_part_line);
+					}
+					//≥
+					if(inbuff[input_string_position+2]==-91)
+					{
+						handle_line_length(_gte,_gte_w,char_part_line);
+					}
+/*
+					else
+					{
+						printf("x");
+					}
+*/
+
+					if(line_complete==0){input_string_position++;}
+
 				}
 /*
 				else
@@ -915,7 +955,6 @@ int process()
 					return(1);
 				}
 */
-
 				input_string_position++;
 
 			}//end while line_complete=0

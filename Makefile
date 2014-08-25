@@ -16,7 +16,7 @@ SRC_URL="https://github.com/7890/shout"
 MAINTAINER="tom@trellis.ch"
 LICENSE="GPL"
 VERSION=0
-RELEASE=5
+RELEASE=8
 
 #gcc -c digits.c -o digits.o -std=gnu99;
 #gcc -c shout.c -o shout.o -std=gnu99;
@@ -25,6 +25,9 @@ RELEASE=5
 
 default: $(PROGNAME)
 all: $(PROGNAME) manpage
+
+chars:
+	cd $(SRC)/chars && ./generate_all.sh
 
 digits.o: $(SRC)/digits.c
 	$(CC) -c $(SRC)/digits.c -o $(SRC)/digits.o $(CFLAGS)
@@ -63,4 +66,4 @@ clean:
 	rm -f $(PROGNAME) $(SRC)/$(PROGNAME).o $(SRC)/digits.o 
 	#$(DOC)/$(PROGNAME).1.gz
 
-.PHONY: clean all install uninstall
+.PHONY: clean all chars install uninstall

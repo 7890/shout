@@ -8,55 +8,60 @@ shout - prints large alphanumeric characters to terminal
 
 SYNOPSIS
 --------
-*shout* [-h | --help] | 'string' ['clear_screen' ['cursor_off' ['clear_newline']]]]
+*shout* OPTIONS <string>
 
 DESCRIPTION
 -----------
-shout takes a *string* argument and prints it to the terminal
-using color escape sequences (VT100 compatible).
+shout takes a *string* argument and prints it to the terminal 
+as pixel-style symbols using color escape sequences.
 
 The following characters can be printed:
 
-*0123456789+-=_.,:;!?/\[](){}abcdefghijklmnopqrstuvwxyz** (and space)
+*0123456789+-=_.,:;!?|%&$@#^~/\[](){}<>*°§çäöüèéàßœæëÿïêôûâî*"'`*
+(plus [a-Z] and space)
+lowercase letters will be printed uppercase
 
-*If 'string' is '-', stdin will be used
+If <string> is *-*, stdin will be used
 
-Prefixed with the escape character *\* (backslash), the following characters or 'tags' are interpreted for highlighting or inverting:
+Foreground and background colors can be set individually.
+The following escape sequences are interpreted for color styling:
 
-*\[...\]*: background red
+*\R*: red
 
-*\\{...\\}*: background green
+*\G*: green
 
-*\(...\)*: background blue
+*\B*: blue
 
-*\<...\>*: invert the foreground/background color scheme
+*\Y*: gray
 
-Any input enclosed with these characters is highlighted.
-Highlighting can not be nested.
-On closing the hightlight, the color scheme reverts to standard (light gray on black).
-Simplified notation is possible by using only the start tag, see examples.
-Strings enclosed in \<\> can contain highlighted parts.
+*\K*: black
+
+*\_*: prepended to colors sets background color
+
+*\|*: reset style
+
+*\/*: invert the foreground/background color scheme
 
 If the terminal width is not wide enough for displaying the input on 
-one line, the output will look weird.
+one line, the output will be wrapped.
 
-shout version is 0.5
+shout version is 0.9
 
 OPTIONS
 -------
-*-h, --help*::
+*--help*::
 	Show help (if given as only argument)
-*-v, --version*::
+*--version*::
 	Show version (if given as only argument)
-*-i, --info*::
+*--info*::
 	Show info (if given as only argument)
-*clear_screen*::
+*--clear*::
 	If equal 1, the screen will be cleared and cursor put to top left 
 	before output takes place
-*cursor_off*::
-	If equal 1, the cursor will be hidden (stays hidden after program exits)
-*clear_newline*::
+*--clearnl*::
 	If equal 1, the screen will be cleared for every new input line (useful in conjuction with '-')
+*--nocursor*::
+	If equal 1, the cursor will be hidden (stays hidden after program exits)
 
 EXIT STATUS
 -----------
@@ -64,7 +69,7 @@ EXIT STATUS
 	Success
 
 *1*::
-	No input string given
+	Wrong arguments, no input string given
 
 EXAMPLES
 --------
@@ -72,36 +77,39 @@ EXAMPLES
 Simple shout::
 	$ shout "123 abc"
 
-Use special symbols::
-	$ shout "+-?()[]{}"
+Use some symbols::
+	$ shout "%?@#é"
 
-Highlight part in string::
-	$ shout "1\[2\]3"
+Highlight a part in string by temporary inverting (and resetting) style::
+	$ shout "1\/2\|3"
 
-Colorful (simplified notation, no closing tags)::
-	$ shout "\[ \\{ \( "
+Colorful test::
+	$ shout "\R1\G2\B3"
 
-Partial color inversion in string::
-	$ shout "123\<4567"
+Setting background red and foreground green::
+	$ shout "\_\R\G1"
 
-Highlighted parts inside inversion::
-	$ shout "\[5\(6\) \<\[5\(6\>"
+The same inverted::
+	$ shout "\_\R\G\/1"
 
 Using options, clear screen before print::
-	$ shout "123" 1
+	$ shout --clear "123"
 
-Using options, hide cursor::
-	$ shout "123" 0 1
-
-Multiline output::
-	$ shout 123; shout 456
+Using options, hide cursor (use command 'reset' to reset terminal)::
+	$ shout --nocursor "123"
 
 Read from stdin::
 	$ echo "abc" | shout -
 
+Using options, clear screen for every new line (input from stdin)::
+	$  shout --clearnl -
+
+Multiline from stdin::
+	$ printf "1\n2\n3\n" | shout -
+
 BUGS
 ----
-See the BUGS file in the source distribution.
+Please report any bugs to <https://github.com/7890/shout/issues>
 
 AUTHOR
 ------
@@ -117,7 +125,7 @@ SEE ALSO
 
 COPYING
 -------
-Copyright \(C) 2013 Thomas Brand. Free use of this software is
+Copyright \(C) 2013 - 2014 Thomas Brand. Free use of this software is
 granted under the terms of the GNU General Public License (GPL).
 
 ////

@@ -211,7 +211,7 @@ int main(int argc, char **argv)
 
         if (argc - optind < 1)
         {
-                fprintf (stderr, "Missing arguments, try --help.\n\n");
+                fprintf (stderr, "Missing arguments, see --help.\n\n");
                 exit(1);
         }
 
@@ -254,7 +254,7 @@ int main(int argc, char **argv)
         //remaining non optional parameter: text string to display
         if(argc-optind != 1)
         {
-                fprintf (stderr, "Wrong arguments, try --help.\n\n");
+                fprintf (stderr, "Wrong arguments, see --help.\n\n");
                 exit(1);
         }
 

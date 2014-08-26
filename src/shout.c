@@ -1,7 +1,7 @@
 /*
 shout.c
 part of shout
-Copyright (C) 2013 - 2014 Thomas Brand
+Copyright (C) 2013 - 2014 Thomas Brand <tom@trellis.ch>
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "digits.h"
 
-//tb/130701/130703/130705/130715/130716/131130/140820
+//tb/130701/130703/130705/130715/130716/131130/140820/140826
 /*
 * output large colored alphanumeric characters in terminal
 * supports a limited color palette for foreground and background colors
@@ -36,9 +36,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 * gcc -c shout.c -o shout.o -std=gnu99; \
 * gcc shout.o digits.o -o shout
 * 
+* generate font from src/chars/_* files:
+* $ make chars
+* (this can take a while)
+*
 * inspired by figlet font
 * figlet-fonts-master/C64-fonts/f15_____.flf
 * 
+* and http://beej.us/c64bdf/c64bdf/c64.bdf (8x8)
+*
+* thanks to Robin Gareus <robin@gareus.org>
+* for pointing out the c64 BDF font and writing a converter
+* to use with shout! this format will be called
+* .shoutfont once a multi-font infrastructure is in sight
+*
 * terminal color codes
 * http://misc.flogisoft.com/bash/tip_colors_and_formatting
 * https://developer.apple.com/library/mac/#documentation/opensource/conceptual/shellscripting/AdvancedTechniques/AdvancedTechniques.html
@@ -90,7 +101,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-static double version=0.91;
+static double version=0.92;
 
 int black=40;
 int lgray=47;
@@ -124,8 +135,8 @@ void print_help()
 	printf("syntax: shout (options) <string>\n\n");
 	printf("supported characters for <string>:\n");
 	printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéàßœæëÿïêôûâî≤≥«»\n");
-	printf("(plus [a-Z] and space)\n");
-	printf("lowercase letters will be printed uppercase\n\n");
+	printf("(plus [a-z], uppercase  and space)\n");
+	//printf("lowercase letters will be printed uppercase\n\n");
 	printf("if <string> is '-', stdin will be used\n\n");
 
 	printf("options:\n");
@@ -485,8 +496,6 @@ int process()
 				}
 
 
-
-
 				// \a
 				else if(inbuff[input_string_position]=='a' && escapeMode==1)
 				{
@@ -505,7 +514,8 @@ int process()
 					escapeMode=0;
 					handle_line_length(_parallelogram,_parallelogram_w,char_part_line);
 				}
-				//unescaped
+
+
 				else if(inbuff[input_string_position]=='[')
 				{
 					handle_line_length(_lbbrace,_lbbrace_w,char_part_line);
@@ -674,110 +684,219 @@ int process()
 				{
 					handle_line_length(_space,_space_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='a' || inbuff[input_string_position]=='A')
+
+
+				else if(inbuff[input_string_position]=='a')
 				{
 					handle_line_length(_a,_a_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='b' || inbuff[input_string_position]=='B')
+				else if(inbuff[input_string_position]=='b')
 				{
 					handle_line_length(_b,_b_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='c' || inbuff[input_string_position]=='C')
+				else if(inbuff[input_string_position]=='c')
 				{
 					handle_line_length(_c,_c_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='d' || inbuff[input_string_position]=='D')
+				else if(inbuff[input_string_position]=='d')
 				{
 					handle_line_length(_d,_d_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='e' || inbuff[input_string_position]=='E')
+				else if(inbuff[input_string_position]=='e')
 				{
 					handle_line_length(_e,_e_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='f' || inbuff[input_string_position]=='F')
+				else if(inbuff[input_string_position]=='f')
 				{
 					handle_line_length(_f,_f_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='g' || inbuff[input_string_position]=='G')
+				else if(inbuff[input_string_position]=='g')
 				{
 					handle_line_length(_g,_g_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='h' || inbuff[input_string_position]=='H')
+				else if(inbuff[input_string_position]=='h')
 				{
 					handle_line_length(_h,_h_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='i' || inbuff[input_string_position]=='I')
+				else if(inbuff[input_string_position]=='i')
 				{
 					handle_line_length(_i,_i_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='j' || inbuff[input_string_position]=='J')
+				else if(inbuff[input_string_position]=='j')
 				{
 					handle_line_length(_j,_j_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='k' || inbuff[input_string_position]=='K')
+				else if(inbuff[input_string_position]=='k')
 				{
 					handle_line_length(_k,_k_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='l' || inbuff[input_string_position]=='L')
+				else if(inbuff[input_string_position]=='l')
 				{
 					handle_line_length(_l,_l_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='m' || inbuff[input_string_position]=='M')
+				else if(inbuff[input_string_position]=='m')
 				{
 					handle_line_length(_m,_m_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='n' || inbuff[input_string_position]=='N')
+				else if(inbuff[input_string_position]=='n')
 				{
 					handle_line_length(_n,_n_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='o' || inbuff[input_string_position]=='O')
+				else if(inbuff[input_string_position]=='o')
 				{
 					handle_line_length(_o,_o_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='p' || inbuff[input_string_position]=='P')
+				else if(inbuff[input_string_position]=='p')
 				{
 					handle_line_length(_p,_p_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='q' || inbuff[input_string_position]=='Q')
+				else if(inbuff[input_string_position]=='q')
 				{
 					handle_line_length(_q,_q_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='r' || inbuff[input_string_position]=='R')
+				else if(inbuff[input_string_position]=='r')
 				{
 					handle_line_length(_r,_r_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='s' || inbuff[input_string_position]=='S')
+				else if(inbuff[input_string_position]=='s')
 				{
 					handle_line_length(_s,_s_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='t' || inbuff[input_string_position]=='T')
+				else if(inbuff[input_string_position]=='t')
 				{
 					handle_line_length(_t,_t_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='u' || inbuff[input_string_position]=='U')
+				else if(inbuff[input_string_position]=='u')
 				{
 					handle_line_length(_u,_u_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='v' || inbuff[input_string_position]=='V')
+				else if(inbuff[input_string_position]=='v')
 				{
 					handle_line_length(_v,_v_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='w' || inbuff[input_string_position]=='W')
+				else if(inbuff[input_string_position]=='w')
 				{
 					handle_line_length(_w,_w_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='x' || inbuff[input_string_position]=='X')
+				else if(inbuff[input_string_position]=='x')
 				{
 					handle_line_length(_x,_x_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='y' || inbuff[input_string_position]=='Y')
+				else if(inbuff[input_string_position]=='y')
 				{
 					handle_line_length(_y,_y_w,char_part_line);
 				}
-				else if(inbuff[input_string_position]=='z' || inbuff[input_string_position]=='Z')
+				else if(inbuff[input_string_position]=='z')
 				{
 					handle_line_length(_z,_z_w,char_part_line);
 				}
+
+
+				else if(inbuff[input_string_position]=='A')
+				{
+					handle_line_length(_A,_A_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='B')
+				{
+					handle_line_length(_B,_B_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='C')
+				{
+					handle_line_length(_C,_C_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='D')
+				{
+					handle_line_length(_D,_D_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='E')
+				{
+					handle_line_length(_E,_E_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='F')
+				{
+					handle_line_length(_F,_F_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='G')
+				{
+					handle_line_length(_G,_G_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='H')
+				{
+					handle_line_length(_H,_H_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='I')
+				{
+					handle_line_length(_I,_I_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='J')
+				{
+					handle_line_length(_J,_J_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='K')
+				{
+					handle_line_length(_K,_K_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='L')
+				{
+					handle_line_length(_L,_L_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='M')
+				{
+					handle_line_length(_M,_M_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='N')
+				{
+					handle_line_length(_N,_N_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='O')
+				{
+					handle_line_length(_O,_O_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='P')
+				{
+					handle_line_length(_P,_P_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='Q')
+				{
+					handle_line_length(_Q,_Q_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='R')
+				{
+					handle_line_length(_R,_R_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='S')
+				{
+					handle_line_length(_S,_S_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='T')
+				{
+					handle_line_length(_T,_T_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='U')
+				{
+					handle_line_length(_U,_U_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='V')
+				{
+					handle_line_length(_V,_V_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='W')
+				{
+					handle_line_length(_W,_W_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='X')
+				{
+					handle_line_length(_X,_X_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='Y')
+				{
+					handle_line_length(_Y,_Y_w,char_part_line);
+				}
+				else if(inbuff[input_string_position]=='Z')
+				{
+					handle_line_length(_Z,_Z_w,char_part_line);
+				}
+
 
 				//multibyte
 				else if(inbuff[input_string_position] == -59)
@@ -785,7 +904,7 @@ int process()
 					//Ÿ
 					if(inbuff[input_string_position+1]==-72)
 					{
-						handle_line_length(_yuml,_yuml_w,char_part_line);
+						handle_line_length(_Yuml,_Yuml_w,char_part_line);
 					}
 					//œ
 					else if(inbuff[input_string_position+1]==-109)
@@ -802,85 +921,154 @@ int process()
 				//multibyte
 				else if(inbuff[input_string_position] == -61)
 				{
-					//ä Ä
-					if(inbuff[input_string_position+1]==-92 || inbuff[input_string_position+1]==-124)
+					//ä
+					if(inbuff[input_string_position+1]==-92)
 					{
 						handle_line_length(_auml,_auml_w,char_part_line);
 					}
-					//ö Ö
-					else if(inbuff[input_string_position+1]==-74 || inbuff[input_string_position+1]==-106)
+					//ö
+					else if(inbuff[input_string_position+1]==-74)
 					{
 						handle_line_length(_ouml,_ouml_w,char_part_line);
 					}
-					//ü Ü
-					else if(inbuff[input_string_position+1]==-68 || inbuff[input_string_position+1]==-100)
+					//ü
+					else if(inbuff[input_string_position+1]==-68)
 					{
 						handle_line_length(_uuml,_uuml_w,char_part_line);
 					}
-					//é É
-					else if(inbuff[input_string_position+1]==-87 || inbuff[input_string_position+1]==-119)
+					//é
+					else if(inbuff[input_string_position+1]==-87)
 					{
 						handle_line_length(_eakut,_eakut_w,char_part_line);
 					}
-					//è È
-					else if(inbuff[input_string_position+1]==-88 || inbuff[input_string_position+1]==-120)
+					//è
+					else if(inbuff[input_string_position+1]==-88)
 					{
 						handle_line_length(_egravis,_egravis_w,char_part_line);
 					}
-					//à À
-					else if(inbuff[input_string_position+1]==-96 || inbuff[input_string_position+1]==-128)
+					//à
+					else if(inbuff[input_string_position+1]==-96)
 					{
 						handle_line_length(_agravis,_agravis_w,char_part_line);
 					}
-					//ç
-					else if(inbuff[input_string_position+1]==-89)
+					//ë
+					else if(inbuff[input_string_position+1]==-85)
 					{
-						handle_line_length(_ccedille,_ccedille_w,char_part_line);
+						handle_line_length(_euml,_euml_w,char_part_line);
 					}
+					//ï
+					else if(inbuff[input_string_position+1]==-81)
+					{
+						handle_line_length(_iuml,_iuml_w,char_part_line);
+					}
+					//ê
+					else if(inbuff[input_string_position+1]==-86)
+					{
+						handle_line_length(_ecircumflex,_ecircumflex_w,char_part_line);
+					}
+					//ô
+					else if(inbuff[input_string_position+1]==-76)
+					{
+						handle_line_length(_ocircumflex,_ocircumflex_w,char_part_line);
+					}
+					//û
+					else if(inbuff[input_string_position+1]==-69)
+					{
+						handle_line_length(_ucircumflex,_ucircumflex_w,char_part_line);
+					}
+					//â
+					else if(inbuff[input_string_position+1]==-94)
+					{
+						handle_line_length(_acircumflex,_acircumflex_w,char_part_line);
+					}
+					//î
+					else if(inbuff[input_string_position+1]==-82)
+					{
+						handle_line_length(_icircumflex,_icircumflex_w,char_part_line);
+					}
+
+
+					//Ä
+					else if(inbuff[input_string_position+1]==-124)
+					{
+						handle_line_length(_Auml,_Auml_w,char_part_line);
+					}
+					//Ö
+					else if(inbuff[input_string_position+1]==-106)
+					{
+						handle_line_length(_Ouml,_Ouml_w,char_part_line);
+					}
+					//Ü
+					else if(inbuff[input_string_position+1]==-100)
+					{
+						handle_line_length(_Uuml,_Uuml_w,char_part_line);
+					}
+					//É
+					else if(inbuff[input_string_position+1]==-119)
+					{
+						handle_line_length(_Eakut,_Eakut_w,char_part_line);
+					}
+					//È
+					else if(inbuff[input_string_position+1]==-120)
+					{
+						handle_line_length(_Egravis,_Egravis_w,char_part_line);
+					}
+					//À
+					else if(inbuff[input_string_position+1]==-128)
+					{
+						handle_line_length(_Agravis,_Agravis_w,char_part_line);
+					}
+					//Ë
+					else if(inbuff[input_string_position+1]==-117)
+					{
+						handle_line_length(_Euml,_Euml_w,char_part_line);
+					}
+					//Ï
+					else if(inbuff[input_string_position+1]==-113)
+					{
+						handle_line_length(_Iuml,_Iuml_w,char_part_line);
+					}
+					//Ê
+					else if(inbuff[input_string_position+1]==-118)
+					{
+						handle_line_length(_Ecircumflex,_Ecircumflex_w,char_part_line);
+					}
+					//Ô
+					else if(inbuff[input_string_position+1]==-108)
+					{
+						handle_line_length(_Ocircumflex,_Ocircumflex_w,char_part_line);
+					}
+					//Û
+					else if(inbuff[input_string_position+1]==-101)
+					{
+						handle_line_length(_Ucircumflex,_Ucircumflex_w,char_part_line);
+					}
+					//Â
+					else if(inbuff[input_string_position+1]==-126)
+					{
+						handle_line_length(_Acircumflex,_Acircumflex_w,char_part_line);
+					}
+					//Î
+					else if(inbuff[input_string_position+1]==-114)
+					{
+						handle_line_length(_Icircumflex,_Icircumflex_w,char_part_line);
+					}
+
+
 					//ß
 					else if(inbuff[input_string_position+1]==-97)
 					{
 						handle_line_length(_doppel_s,_doppel_s_w,char_part_line);
-					}
-					//ë Ë
-					else if(inbuff[input_string_position+1]==-85 || inbuff[input_string_position+1]==-117)
-					{
-						handle_line_length(_euml,_euml_w,char_part_line);
 					}
 					//ÿ
 					else if(inbuff[input_string_position+1]==-65)
 					{
 						handle_line_length(_yuml,_yuml_w,char_part_line);
 					}
-					//ï Ï
-					else if(inbuff[input_string_position+1]==-81 || inbuff[input_string_position+1]==-113)
+					//ç
+					else if(inbuff[input_string_position+1]==-89)
 					{
-						handle_line_length(_iuml,_iuml_w,char_part_line);
-					}
-					//ê Ê
-					else if(inbuff[input_string_position+1]==-86 || inbuff[input_string_position+1]==-118)
-					{
-						handle_line_length(_ecircumflex,_ecircumflex_w,char_part_line);
-					}
-					//ô Ô
-					else if(inbuff[input_string_position+1]==-76 || inbuff[input_string_position+1]==-108)
-					{
-						handle_line_length(_ocircumflex,_ocircumflex_w,char_part_line);
-					}
-					//û Û
-					else if(inbuff[input_string_position+1]==-69 || inbuff[input_string_position+1]==-101)
-					{
-						handle_line_length(_ucircumflex,_ucircumflex_w,char_part_line);
-					}
-					//â Â
-					else if(inbuff[input_string_position+1]==-94 || inbuff[input_string_position+1]==-126)
-					{
-						handle_line_length(_acircumflex,_acircumflex_w,char_part_line);
-					}
-					//î Î
-					else if(inbuff[input_string_position+1]==-82 || inbuff[input_string_position+1]==-114)
-					{
-						handle_line_length(_icircumflex,_icircumflex_w,char_part_line);
+						handle_line_length(_ccedille,_ccedille_w,char_part_line);
 					}
 					//æ
 					else if(inbuff[input_string_position+1]==-90)

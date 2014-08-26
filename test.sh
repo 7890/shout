@@ -33,5 +33,5 @@ test "\Baa\Raa\/aaaaaaaaaaaaaaaaaaaaaaa\/aa"
 printf "a\nb\nc\n" | ./shout - $opts
 printf "a\nbbbbbbbbbbbbbbbbbbbbbbbbbbb\nc\n" | ./shout - $opts
 
-string="\\\\/0123456789+-=_.,:;!?|%&@#^~[]()}$<>*'\` abcdefghijklmnopqrstuvwxyzäöüéèà§°çßœæëÿïêôûâî≤≥«»"
+string="\\\\/0123456789+-=_.,:;!?|%&@#^~[]()}$<>*'\` abcdefghijklmnopqrstuvwxyzäöüéèàëÿïêôûâîABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜÉÈÀËŸÏÊÔÛÂÎ§°çßœæ≤≥«»"
 test "$string"

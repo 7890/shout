@@ -33,5 +33,21 @@ test "\Baa\Raa\/aaaaaaaaaaaaaaaaaaaaaaa\/aa"
 printf "a\nb\nc\n" | ./shout - $opts
 printf "a\nbbbbbbbbbbbbbbbbbbbbbbbbbbb\nc\n" | ./shout - $opts
 
-string="\\\\/0123456789+-=_.,:;!?|%&@#^~[]()}$<>*'\` abcdefghijklmnopqrstuvwxyzäöüéèàëÿïêôûâîABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜÉÈÀËŸÏÊÔÛÂÎ§°çßœæ≤≥«»"
+string="\\\\/0123456789+-=_.,:;!?|%&@#^~[]()}$<>*'\` abcdefghijklmnopqrstuvwxyzäöüéèàëÿïêôûâîABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜÉÈÀËŸÏÊÔÛÂÎ§°çßœæ≤≥«»☐☑☎☺☹♫☕☃"
 test "$string"
+
+string=".\1.\2.\3.\4.\5.\6.\7."
+test "$string"
+
+string="\a\b\c\n\t"
+test "$string"
+
+string="`printf \"a\nb\nc\tx\n\"`"
+./shout --shownl --showtab "$string"
+echo "$string" | ./shout --shownl --showtab -
+
+string="`printf \"a\nbbbbbbbbbbbbbbbbbbbbb\nc\tx\n\"`"
+./shout --shownl --showtab "$string"
+echo "$string" | ./shout --shownl --showtab -
+
+./shout --nowrap "123456789.0123456789.01234567890."

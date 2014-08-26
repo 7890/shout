@@ -101,7 +101,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-static double version=0.93;
+static double version=0.95;
 
 int black=40;
 int lgray=47;
@@ -118,6 +118,11 @@ int invertColors=0;
 int clearOnStart=0;
 int clearOnNewLine=0;
 int cursorOff=0;
+int displayNewLine=0;
+int displayTab=0;
+int noWrap=0;
+
+//int spacesPerTab=3;
 
 #define BUFFSIZE 256
 char inbuff[BUFFSIZE];
@@ -134,15 +139,18 @@ void print_help()
 {
 	printf("syntax: shout (options) <string>\n\n");
 	printf("supported characters for <string>:\n");
-	printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéàßœæëÿïêôûâî≤≥«»\n");
+	printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéàßœæëÿïêôûâî≤≥«»☐☑☺☹♫☕☃\n");
 	printf("(plus [a-z], uppercase  and space)\n");
-	//printf("lowercase letters will be printed uppercase\n\n");
-	printf("if <string> is '-', stdin will be used\n\n");
+	printf("if <string> is '-', stdin will be used\n");
+	printf("newlines \\n and tabs \\t will be interpreted\n");
 
 	printf("options:\n");
 	printf("   --clear	# screen will be cleared (output starting at top)\n");
 	printf("   --clearnl    # screen will be cleared for every new line\n");
-	printf("   --nocursor	# cursor will be hidden\n\n");
+	printf("   --nocursor	# cursor will be hidden\n");
+	printf("   --shownl	# display newline as special chars (stdin)\n");
+	printf("   --showtab	# display tab as special chars (stdin)\n");
+	printf("   --nowrap	# don't wrap lines exceeding terminal width\n\n");
 
 	printf("foreground and background colors can be set using escape sequences.\n");
 	printf("the default colors are: FG: gray  BG: black\n\n");
@@ -217,6 +225,10 @@ int main(int argc, char **argv)
 		{"clear",       no_argument,    &clearOnStart, 1},
 		{"clearnl",     no_argument,    &clearOnNewLine, 1},
 		{"nocursor",    no_argument,    &cursorOff, 1},
+		{"shownl",      no_argument,    &displayNewLine, 1},
+		{"showtab",     no_argument,    &displayTab, 1},
+		{"nowrap",      no_argument,    &noWrap, 1},
+
 		{0, 0, 0, 0}
 	};
 
@@ -296,12 +308,30 @@ int main(int argc, char **argv)
 		{
 			if(c != *nl)
 			{
-				inbuff[count]=c;
-				//printf("%c",inbuff[count]);
-				count++;
+				if(c=='\t' && displayTab==1)
+				{
+					inbuff[count]='\\';
+					count++;
+					inbuff[count]='t';
+					count++;
+				}
+				else
+				{
+					inbuff[count]=c;
+					//printf("%c",inbuff[count]);
+					count++;
+				}
 			}
 			else
 			{
+				if(displayNewLine==1)
+				{
+					inbuff[count]='\\';
+					count++;
+					inbuff[count]='n';
+					count++;
+				}
+
 				if(clearOnNewLine==1)
 				{
 					printf("\ec");
@@ -351,7 +381,7 @@ void handle_line_length(
 ////////////////////////////////////////////////////////////////////
 int process()
 {
-	//printf("%d %d %d\n",inbuff[0],inbuff[1],inbuff[2]);
+	printf("%d %d %d\n",inbuff[0],inbuff[1],inbuff[2]);
 
 	//get term width / cols
 	//http://stackoverflow.com/questions/1022957/getting-terminal-width-in-c
@@ -539,6 +569,19 @@ int process()
 					handle_line_length(_7pixel,_7pixel_w,char_part_line);
 				}
 
+				// \n
+				else if(inbuff[input_string_position]=='n' && escapeMode==1)
+				{
+					escapeMode=0;
+					handle_line_length(_nl,_nl_w,char_part_line);
+				}
+				// \t
+				else if(inbuff[input_string_position]=='t' && escapeMode==1)
+				{
+					escapeMode=0;
+					handle_line_length(_tab,_tab_w,char_part_line);
+				}
+
 				// \a
 				else if(inbuff[input_string_position]=='a' && escapeMode==1)
 				{
@@ -558,8 +601,38 @@ int process()
 					handle_line_length(_parallelogram,_parallelogram_w,char_part_line);
 				}
 
+				else if(inbuff[input_string_position]=='\t')
+				{
+					if(displayTab==1)
+					{
+						handle_line_length(_tab,_tab_w,char_part_line);
+					}
+					else
+					{
+						//handle tab as single space for now
+						handle_line_length(_space,_space_w,char_part_line);
+					}
+				}
+				else if(inbuff[input_string_position]=='\n')
+				{
+					//prepare to skip \n on next line
+					input_string_position++;
 
+					if(displayNewLine==1)
+					{
+						handle_line_length(_nl,_nl_w,char_part_line);
+						if(line_complete==1)
+						{
+							//no space left on line to display nl -> rewind so it will be used on next line
+							input_string_position--;
+						}
+					}
 
+					//in any case it's a line end 
+					line_complete=1;
+					wrapping=1;
+					break_at=current_line_length;
+				}
 
 				else if(inbuff[input_string_position]=='[')
 				{
@@ -729,8 +802,6 @@ int process()
 				{
 					handle_line_length(_space,_space_w,char_part_line);
 				}
-
-
 				else if(inbuff[input_string_position]=='a')
 				{
 					handle_line_length(_a,_a_w,char_part_line);
@@ -1167,7 +1238,12 @@ int process()
 						handle_line_length(_lte,_lte_w,char_part_line);
 					}
 					//≥
-					if(inbuff[input_string_position+2]==-91)
+					else if(inbuff[input_string_position+2]==-91)
+					{
+						handle_line_length(_gte,_gte_w,char_part_line);
+					}
+					//☑
+					else if(inbuff[input_string_position+2]==-91)
 					{
 						handle_line_length(_gte,_gte_w,char_part_line);
 					}
@@ -1179,7 +1255,62 @@ int process()
 */
 
 					if(line_complete==0){input_string_position++;}
+				}
 
+				//multibyte 3!
+				else if(inbuff[input_string_position] == -30 && inbuff[input_string_position+1] == -103 )
+				{
+					//♫
+					if(inbuff[input_string_position+2]==-85)
+					{
+						handle_line_length(_beamed_eight_notes,_beamed_eight_notes_w,char_part_line);
+					}
+
+					if(line_complete==0){input_string_position++;}
+				}
+
+
+				//multibyte 3!
+				else if(inbuff[input_string_position] == -30 && inbuff[input_string_position+1] == -104 )
+				{
+					//☐
+					if(inbuff[input_string_position+2]==-112)
+					{
+						handle_line_length(_ballot_box,_ballot_box_w,char_part_line);
+					}
+					//☑
+					else if(inbuff[input_string_position+2]==-111)
+					{
+						handle_line_length(_ballot_box_checked,_ballot_box_checked_w,char_part_line);
+					}
+					//☎
+					else if(inbuff[input_string_position+2]==-114)
+					{
+						handle_line_length(_phone,_phone_w,char_part_line);
+					}
+					//☺
+					else if(inbuff[input_string_position+2]==-70)
+					{
+						handle_line_length(_face_smiling,_face_smiling_w,char_part_line);
+					}
+					//☹
+					else if(inbuff[input_string_position+2]==-71)
+					{
+						handle_line_length(_face_frowning,_face_frowning_w,char_part_line);
+					}
+					//☕
+					else if(inbuff[input_string_position+2]==-107)
+					{
+						handle_line_length(_cup_hot,_cup_hot_w,char_part_line);
+					}
+					//☃
+					else if(inbuff[input_string_position+2]==-125)
+					{
+						handle_line_length(_snowman,_snowman_w,char_part_line);
+					}
+
+
+					if(line_complete==0){input_string_position++;}
 				}
 /*
 				else
@@ -1199,7 +1330,7 @@ int process()
 
 		}//end for every shout char_part_line
 
-		if(wrapping==0)
+		if(wrapping==0 || (wrapping==1 && noWrap==1))
 		{
 			finished=1;
 		}

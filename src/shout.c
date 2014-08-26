@@ -101,7 +101,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-static double version=0.95;
+static double version=0.96;
 
 int black=40;
 int lgray=47;
@@ -139,7 +139,7 @@ void print_help()
 {
 	printf("syntax: shout (options) <string>\n\n");
 	printf("supported characters for <string>:\n");
-	printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéàßœæëÿïêôûâî≤≥«»☐☑☺☹♫☕☃\n");
+	printf("0123456789+-=_.,:;!?|%%&$@#^~/\\[](){}<>*`'\"°§çäöüèéàßœæëÿïêôûâî≤≥«»☐☑☺☹♫☕☃©®\n");
 	printf("(plus [a-z], uppercase  and space)\n");
 	printf("if <string> is '-', stdin will be used\n");
 	printf("newlines \\n and tabs \\t will be interpreted\n");
@@ -381,6 +381,7 @@ void handle_line_length(
 ////////////////////////////////////////////////////////////////////
 int process()
 {
+	//debug
 	//printf("%d %d %d\n",inbuff[0],inbuff[1],inbuff[2]);
 
 	//get term width / cols
@@ -1221,6 +1222,17 @@ int process()
 					{
 						handle_line_length(_mgt,_mgt_w,char_part_line);
 					}
+					//©
+					else if(inbuff[input_string_position+1]==-87)
+					{
+						handle_line_length(_copyright,_copyright_w,char_part_line);
+					}
+					//®
+					else if(inbuff[input_string_position+1]==-82)
+					{
+						handle_line_length(_registered,_registered_w,char_part_line);
+					}
+
 					else
 					{
 						printf("x");

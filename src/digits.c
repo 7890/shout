@@ -725,6 +725,22 @@ int _comma_w()
 {
 	return 8;
 }
+void _copyright(int line)
+{
+/* ##.....# */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
+/* #.#####. */	if(line==0 || line==2){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);nl_(line);}
+/* #.##..#. */	if(line==0 || line==3){bg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);fg(1);nl_(line);}
+/* #.#.###. */	if(line==0 || line==4){bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);fg(1);nl_(line);}
+/* #.##..#. */	if(line==0 || line==5){bg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);fg(1);nl_(line);}
+/* #.#####. */	if(line==0 || line==6){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);nl_(line);}
+/* ##.....# */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
+/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+
+}
+int _copyright_w()
+{
+	return 8;
+}
 void _cup_hot(int line)
 {
 /* #.#.#### */	if(line==0 || line==1){bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
@@ -2034,6 +2050,22 @@ void _rcbrace(int line)
 
 }
 int _rcbrace_w()
+{
+	return 8;
+}
+void _registered(int line)
+{
+/* ##.....# */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
+/* #.#####. */	if(line==0 || line==2){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);nl_(line);}
+/* #.#...#. */	if(line==0 || line==3){bg(1);fg(1);bg(1);fg(1);fg(1);fg(1);bg(1);fg(1);nl_(line);}
+/* #.#.#.#. */	if(line==0 || line==4){bg(1);fg(1);bg(1);fg(1);bg(1);fg(1);bg(1);fg(1);nl_(line);}
+/* #.#..##. */	if(line==0 || line==5){bg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);nl_(line);}
+/* #.#.#.#. */	if(line==0 || line==6){bg(1);fg(1);bg(1);fg(1);bg(1);fg(1);bg(1);fg(1);nl_(line);}
+/* ##.....# */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
+/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
+
+}
+int _registered_w()
 {
 	return 8;
 }

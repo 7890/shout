@@ -33,7 +33,7 @@ test "\Baa\Raa\/aaaaaaaaaaaaaaaaaaaaaaa\/aa"
 printf "a\nb\nc\n" | ./shout - $opts
 printf "a\nbbbbbbbbbbbbbbbbbbbbbbbbbbb\nc\n" | ./shout - $opts
 
-string="\\\\/0123456789+-=_.,:;!?|%&@#^~[]()}$<>*'\` abcdefghijklmnopqrstuvwxyzäöüéèàëÿïêôûâîABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜÉÈÀËŸÏÊÔÛÂÎ§°çßœæ≤≥«»☐☑☎☺☹♫☕☃"
+string="\\\\/0123456789+-=_.,:;!?|%&@#^~[]()}$<>*'\` abcdefghijklmnopqrstuvwxyzäöüéèàëÿïêôûâîABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜÉÈÀËŸÏÊÔÛÂÎ§°çßœæ≤≥«»☐☑☎☺☹♫☕☃©®"
 test "$string"
 
 string=".\1.\2.\3.\4.\5.\6.\7."

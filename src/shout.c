@@ -101,7 +101,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-static double version=0.92;
+static double version=0.93;
 
 int black=40;
 int lgray=47;
@@ -496,6 +496,49 @@ int process()
 				}
 
 
+				// \1 1 pixel wide spacer
+				else if(inbuff[input_string_position]=='1' && escapeMode==1)
+				{
+					escapeMode=0;
+					handle_line_length(_1pixel,_1pixel_w,char_part_line);
+				}
+				// \2 2 pixel wide spacer
+				else if(inbuff[input_string_position]=='2' && escapeMode==1)
+				{
+					escapeMode=0;
+					handle_line_length(_2pixel,_2pixel_w,char_part_line);
+				}
+				// \3 3 pixel wide spacer
+				else if(inbuff[input_string_position]=='3' && escapeMode==1)
+				{
+					escapeMode=0;
+					handle_line_length(_3pixel,_3pixel_w,char_part_line);
+				}
+				// \4 4 pixel wide spacer
+				else if(inbuff[input_string_position]=='4' && escapeMode==1)
+				{
+					escapeMode=0;
+					handle_line_length(_4pixel,_4pixel_w,char_part_line);
+				}
+				// \5 5 pixel wide spacer
+				else if(inbuff[input_string_position]=='5' && escapeMode==1)
+				{
+					escapeMode=0;
+					handle_line_length(_5pixel,_5pixel_w,char_part_line);
+				}
+				// \6 6 pixel wide spacer
+				else if(inbuff[input_string_position]=='6' && escapeMode==1)
+				{
+					escapeMode=0;
+					handle_line_length(_6pixel,_6pixel_w,char_part_line);
+				}
+				// \7 7 pixel wide spacer
+				else if(inbuff[input_string_position]=='7' && escapeMode==1)
+				{
+					escapeMode=0;
+					handle_line_length(_7pixel,_7pixel_w,char_part_line);
+				}
+
 				// \a
 				else if(inbuff[input_string_position]=='a' && escapeMode==1)
 				{
@@ -514,6 +557,8 @@ int process()
 					escapeMode=0;
 					handle_line_length(_parallelogram,_parallelogram_w,char_part_line);
 				}
+
+
 
 
 				else if(inbuff[input_string_position]=='[')

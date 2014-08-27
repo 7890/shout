@@ -1,0 +1,7 @@
+shout (0.9.0) i386; urgency=low
+
+  * Add ChangeLog
+  * shout v0.9.0
+    - https://www.debian.org/doc/debian-policy/ch-source.html#s-dpkgchangelog
+
+ -- Thomas Brand <tom@trellis.ch>  Mon, 25 Aug 2014 21:22:52 +0200

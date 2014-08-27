@@ -1,5 +1,3 @@
-#!/usr/bin/make -f
-
 CC ?= gcc
 CFLAGS ?= -Wall -std=c99
 PREFIX ?= /usr/local
@@ -10,6 +8,7 @@ PROGNAME ?= shout
 
 SRC=src
 DOC=doc
+DIST=dist
 
 #.deb package
 SRC_URL ?= "https://github.com/7890/shout"
@@ -17,7 +16,7 @@ MAINTAINER ?= "Thomas Brand \<tom@trellis.ch\>"
 LICENSE ?= "GPL2"
 VERSION ?= 0
 RELEASE ?= 9
-
+RELEASE_DATE ?= 140826
 #REQUIRES ?= "libc6 (>= 2.14)"
 REQUIRES ?= "libc6"
 
@@ -53,17 +52,13 @@ prepare_checkinstall:
 	chmod 0755 doc-pak
 	cp README.md doc-pak
 	cp COPYING doc-pak/copyright
-	cp doc/changelog.Debian.gz doc-pak
 	chmod 0644 doc-pak/README.md
 	chmod 0644 doc-pak/copyright
-	chmod 0644 doc-pak/changelog.Debian.gz
 
 	mkdir -p doc-pak/doc
 	chmod 0755 doc-pak/doc
 	cp doc/shout.man.asciidoc doc-pak/doc
-	cp doc/shout.1.gz doc-pak/doc
 	chmod 0644 doc-pak/doc/shout.man.asciidoc
-	chmod 0644 doc-pak/doc/shout.1.gz
 
 	echo "Print large characters in terminal" > description-pak
 	echo "Print large pixel-style characters with custom colors in terminal" >> description-pak
@@ -72,18 +67,38 @@ prepare_checkinstall:
 	@echo "next: sudo make deb64"
 
 deb64: 
+	rm -f doc-pak/changelog.Debian.gz
+	cp $(DOC)/changelog.Debian.amd64 doc-pak/changelog.Debian
+	gzip -9 doc-pak/changelog.Debian	
+	chmod 0644 doc-pak/changelog.Debian.gz
+
 	checkinstall -D --exclude="/home/*" --arch=amd64 --pkgname=$(PROGNAME) --pkgsource=$(SRC_URL) --pkgversion=$(VERSION) --pkgrelease=$(RELEASE) \
 	--requires=$(REQUIRES) --maintainer=$(MAINTAINER) --pkglicense=$(LICENSE) --pkggroup="text" --install=no make install PREFIX=$(PREFIX_PACKAGES)
 
 	@echo "done."
 	@echo "next: lintian <created package>"
 
+deb64_dist:
+	mkdir -p $(DIST)
+	mv $(PROGNAME)_$(VERSION)-$(RELEASE)_amd64.deb  $(DIST)/$(PROGNAME)_$(RELEASE_DATE)_$(VERSION)-$(RELEASE)_amd64.deb
+	$(DIST)/create_report.sh $(DIST)/$(PROGNAME)_$(RELEASE_DATE)_$(VERSION)-$(RELEASE)_amd64.deb > $(DIST)/$(PROGNAME)_$(RELEASE_DATE)_$(VERSION)-$(RELEASE)_amd64.deb.txt 2>&1
+
 deb32: 
+	rm -f doc-pak/changelog.Debian.gz
+	cp $(DOC)/changelog.Debian.i386 doc-pak/changelog.Debian
+	gzip -9 doc-pak/changelog.Debian	
+	chmod 0644 doc-pak/changelog.Debian.gz
+
 	checkinstall -D --exclude="/home/*" --arch=i386 --pkgname=$(PROGNAME) --pkgsource=$(SRC_URL) --pkgversion=$(VERSION) --pkgrelease=$(RELEASE) \
 	--requires=$(REQUIRES) --maintainer=$(MAINTAINER) --pkglicense=$(LICENSE) --pkggroup="text" --install=no make install PREFIX=$(PREFIX_PACKAGES)
 
 	@echo "done."
 	@echo "next: lintian <created package>"
+
+deb32_dist:
+	mkdir -p $(DIST)
+	mv $(PROGNAME)_$(VERSION)-$(RELEASE)_i386.deb  $(DIST)/$(PROGNAME)_$(RELEASE_DATE)_$(VERSION)-$(RELEASE)_i386.deb
+	$(DIST)/create_report.sh $(DIST)/$(PROGNAME)_$(RELEASE_DATE)_$(VERSION)-$(RELEASE)_i386.deb > $(DIST)/$(PROGNAME)_$(RELEASE_DATE)_$(VERSION)-$(RELEASE)_i386.deb.txt 2>&1
 
 debarmhf: 
 	checkinstall -D --exclude="/home/*" --arch=armhf --pkgname=$(PROGNAME) --pkgsource=$(SRC_URL) --pkgversion=$(VERSION) --pkgrelease=$(RELEASE) \

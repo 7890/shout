@@ -13,8 +13,6 @@ then
 fi
 
 
-
-
 FILE="$1"
 PACKAGE=shout
 BIN1=/usr/bin/shout
@@ -30,6 +28,14 @@ echo "\$ md5sum $FILE"
 md5sum $FILE
 echo ""
 
+echo "\$ lintian $FILE"
+lintian "$FILE"
+echo ""
+
+echo "\$ sudo apt-get remove $PACKAGE"
+sudo apt-get -y remove "$PACKAGE"
+echo ""
+
 echo "\$ sudo dpkg -i $FILE"
 sudo dpkg -i $FILE
 echo ""
@@ -43,6 +49,6 @@ LD_LIBRARY_PATH=$LDP ldd $BIN1
 echo ""
 
 echo "\$ LD_LIBRARY_PATH=$LDP $BIN1 --version"
-LD_LIBRARY_PATH=$LDP $BIN1
+LD_LIBRARY_PATH=$LDP $BIN1 --version
 echo ""
 

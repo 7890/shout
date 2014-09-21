@@ -1,22 +1,29 @@
 CC ?= gcc
-CFLAGS ?= -Wall -std=c99
+CFLAGS ?= -Wall
+#-std=c99
 PREFIX ?= /usr/local
 PREFIX_PACKAGES ?= /usr
 INSTALLDIR ?= $(PREFIX)/bin
 MANDIR ?= $(PREFIX)/share/man/man1
 PROGNAME ?= shout
 
+#cshout
+#ushout
+
 SRC=src
 DOC=doc
 DIST=dist
+
+BUILD=build
+FONTS=fonts
 
 #.deb package
 SRC_URL ?= "https://github.com/7890/shout"
 MAINTAINER ?= "Thomas Brand \<tom@trellis.ch\>"
 LICENSE ?= "GPL2"
 VERSION ?= 0
-RELEASE ?= 96
-RELEASE_DATE ?= 140827
+RELEASE ?= 97
+RELEASE_DATE ?= 140921
 #REQUIRES ?= "libc6 (>= 2.14)"
 REQUIRES ?= "libc6"
 PKG_GROUP ?= "text"
@@ -25,47 +32,109 @@ ARCH ?= "i386"
 #ARCH ?= "amd64"
 #ARCH ?= "armhf"
 
-#gcc -c digits.c -o digits.o -std=gnu99;
-#gcc -c shout.c -o shout.o -std=gnu99;
-#gcc shout.o digits.o -o shout
+#gcc -Wall -c -o utf8.o utf8.c 
+#gcc -Wall -c -o font.o font.c 
+#gcc -Wall -c -o ushout.o ushout.c 
+#gcc -Wall -o ushout ushout.o utf8.o font.o
 
 #note: lintian to test created packages
 
 ###############################################################################
 
-default: $(PROGNAME)
-all: $(PROGNAME) manpage
+#default: $(PROGNAME)
+#all: $(PROGNAME) manpage
 
-chars:
-	cd $(SRC)/chars && ./generate_all.sh
+default: compile
 
-digits.o: $(SRC)/digits.c
-	$(CC) -c $(SRC)/digits.c -o $(SRC)/digits.o $(CFLAGS)
+compile: cshout ushout
 
-$(PROGNAME).o: $(SRC)/$(PROGNAME).c
-	$(CC) -c $(SRC)/$(PROGNAME).c -o $(SRC)/$(PROGNAME).o $(CFLAGS)
+gen_cshout: 
+	#$(SRC)/encoding_patterns.h.header src/spfenc.c src/font.c src/font.h $(FONTS)"/c64_extended.spf.gz" $(FONTS)"/nl_tab_unknown_8x8.spf"
+	mkdir -p $(BUILD)/c
 
-$(PROGNAME): $(SRC)/digits.o $(SRC)/$(PROGNAME).o
-	$(CC) $(SRC)/digits.o $(SRC)/$(PROGNAME).o -o $(PROGNAME) $(CFLAGS)
+	@echo "start build c64_extended font =================="
+	@echo ""
+
+	$(SRC)/create_encoding_patterns.sh --pass 0 \
+	--source $(SRC) \
+	--build $(BUILD)/c \
+	--out cshout \
+	--spfgz $(FONTS)"/c64_extended.spf.gz" \
+	--lpc 8 \
+	--ammend $(FONTS)"/nl_tab_unknown_8x8.spf" \
+	--name "c64 extended" \
+	--desc "spf derived from file c64font.bdf.tgz, `date --iso-8601`"
+
+gen_ushout:
+	mkdir -p $(BUILD)/u
+
+	@echo "start build unifont font ======================="
+	@echo ""
+
+	$(SRC)/create_encoding_patterns.sh --pass 0 \
+	--source $(SRC) \
+	--build $(BUILD)/u \
+	--out ushout \
+	--spfgz $(FONTS)"/unifont-7.0.03.spf.gz" \
+	--lpc 16 \
+	--ammend $(FONTS)"/nl_tab_unknown_8x16.spf" \
+	--name "unifont 7" \
+	--desc "spf derived from file unifont-7.0.03.bdf.tgz, `date --iso-8601`"
+
+	@echo "done! =========================================="
+
+utf8.o: $(SRC)/utf8.c
+	$(CC) -c -o $(BUILD)/utf8.o $(SRC)/utf8.c $(CFLAGS)
+
+cshout.o: $(SRC)/shout.c
+	$(CC) -c -o $(BUILD)/c/cshout.o $(SRC)/shout.c $(CFLAGS)
+
+cfont.o: $(SRC)/font.c
+	$(CC) -c -o $(BUILD)/c/cfont.o $(SRC)/font.c $(CFLAGS) -I $(BUILD)/c
+
+cshout: gen_cshout utf8.o cfont.o cshout.o
+	$(CC) -o $(BUILD)/c/cshout $(BUILD)/c/cshout.o $(BUILD)/utf8.o $(BUILD)/c/cfont.o $(CFLAGS)
+	$(BUILD)/c/cshout --fontinfo
+	$(BUILD)/c/cshout --eval 'congrat\/s!'
+
+ushout.o: $(SRC)/shout.c
+	$(CC) -c -o $(BUILD)/u/ushout.o $(SRC)/shout.c $(CFLAGS)
+
+ufont.o: $(SRC)/font.c
+	$(CC) -c -o $(BUILD)/u/ufont.o $(SRC)/font.c $(CFLAGS) -I $(BUILD)/u
+
+ushout: gen_ushout utf8.o ufont.o ushout.o
+	$(CC) -o $(BUILD)/u/ushout $(BUILD)/u/ushout.o $(BUILD)/utf8.o $(BUILD)/u/ufont.o $(CFLAGS)
+	$(BUILD)/u/ushout --fontinfo
+	$(BUILD)/u/ushout --eval 'congrat\/s!'
 
 manpage: $(DOC)/$(PROGNAME).man.asciidoc
 	a2x --doctype manpage --format manpage $(DOC)/$(PROGNAME).man.asciidoc
 	gzip -9 -f $(DOC)/$(PROGNAME).1
 
-install: $(PROGNAME)
+install:
 	mkdir -p $(DESTDIR)$(INSTALLDIR)/
 	mkdir -p $(DESTDIR)$(MANDIR)/
-	install -m755 $(PROGNAME) $(DESTDIR)$(INSTALLDIR)/
+
+	install -m755 $(SRC)/shout.sh $(DESTDIR)$(INSTALLDIR)/shout
+	install -m755 $(SRC)/ishout.sh $(DESTDIR)$(INSTALLDIR)/ishout
+	install -m755 $(BUILD)/c/cshout $(DESTDIR)$(INSTALLDIR)/
+	install -m755 $(BUILD)/u/ushout $(DESTDIR)$(INSTALLDIR)/
+
 	install -m644 $(DOC)/$(PROGNAME).1.gz $(DESTDIR)$(MANDIR)/
 
 uninstall:
-	rm -f $(DESTDIR)$(INSTALLDIR)/$(PROGNAME)
+	rm -f $(DESTDIR)$(INSTALLDIR)/shout
+	rm -f $(DESTDIR)$(INSTALLDIR)/ishout
+	rm -f $(DESTDIR)$(INSTALLDIR)/cshout
+	rm -f $(DESTDIR)$(INSTALLDIR)/ushout
+
 	rm -f $(DESTDIR)$(MANDIR)/$(PROGNAME).1.gz
 	-rmdir $(DESTDIR)$(INSTALLDIR)
 	-rmdir $(DESTDIR)$(MANDIR)
 
 clean:
-	rm -f $(PROGNAME) $(SRC)/$(PROGNAME).o $(SRC)/digits.o 
+	rm -rf $(BUILD)
 	rm -f $(PROGNAME)*.deb
 	rm -f $(PROGNAME)*.deb.txt
 	rm -rf doc-pak
@@ -121,4 +190,4 @@ deb_dist:
 	@echo ""
 	@echo "if package is ok to release, move to $(DIST) and add to repository"
 
-.PHONY: clean all chars install uninstall prepare_checkinstall deb deb_dist
+.PHONY: clean all install uninstall manpage prepare_checkinstall deb deb_dist

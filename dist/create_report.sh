@@ -15,7 +15,9 @@ fi
 
 FILE="$1"
 PACKAGE=shout
-BIN1=/usr/bin/shout
+BIN0=/usr/bin/shout
+BIN1=/usr/bin/cshout
+BIN2=/usr/bin/ushout
 LDP="/usr/lib"
 
 echo "$PACKAGE"
@@ -52,3 +54,16 @@ echo "\$ LD_LIBRARY_PATH=$LDP $BIN1 --version"
 LD_LIBRARY_PATH=$LDP $BIN1 --version
 echo ""
 
+echo "\$ LD_LIBRARY_PATH=$LDP ldd $BIN2"
+LD_LIBRARY_PATH=$LDP ldd $BIN2
+echo ""
+
+echo "\$ LD_LIBRARY_PATH=$LDP $BIN2 --version"
+LD_LIBRARY_PATH=$LDP $BIN2 --version
+echo ""
+
+echo "\$ LD_LIBRARY_PATH=$LDP $BIN0 --version"
+LD_LIBRARY_PATH=$LDP $BIN0 --version
+echo ""
+
+LD_LIBRARY_PATH=$LDP $BIN0 --eval "DO\/NE!"

@@ -1,343 +1,113 @@
 /*
-digits.h
-part of shout
-Copyright (C) 2013 - 2014 Thomas Brand
+  font.h
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2
-of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+  part of shout - print large pixel fonts in terminal
+  https://github.com/7890/shout
+ 
+  (C) 2013-2014 Thomas Brand <tom@trellis.ch>
+ 
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2, or (at your option)
+  any later version.
+ 
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+ 
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software Foundation,
+  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#ifndef DIGITS_H_INCLUDED
-#define DIGITS_H_INCLUDED
+#ifndef FONT_H_INCLUDED
+#define FONT_H_INCLUDED
 
-//tb/130704/140822
+int get_mapping_table_index(int unicode_point);
+int get_char_width(int unicode_point);
+int get_char_width_cropped(int unicode_point);
+int get_char_height_cropped();
+int create_char(int unicode_point);
+int fill_char_matrix();
+void print_font_info();
+void print_spf();
+void print_mapping_table();
+void expand_string(char *s);
+void expand_char(char c);
+void crop_char();
+void print_char();
+void print_char_cropped();
+void print_char_header();
+void print_char_line(int line);
+void print_char_line_cropped(int line);
+void print_pixels(char *c);
+void bg();
+void fg();
+void font_setup();
+int get_lines_per_char();
+int get_visual_nl_cp();
+int get_visual_tab_cp();
+int get_visual_unknown_cp();
+void print_ppm_color(int color);
+void eval_terminal_width();
 
-extern int BG_COL; //=40;
-extern int FG_COL; //=47;
+//--------------------------------
+struct Cropper
+{
+//	int specific_line;//=-1; //-1 all lines 0 first line
 
-//#endif
+	//trim, crop, extend glyph
+	//coordinates 0,0 are at top left of a glyph, containing the first pixel
 
-void _0(int line);
-void _1(int line);
-void _1pixel(int line);
-void _2(int line);
-void _2pixel(int line);
-void _3(int line);
-void _3pixel(int line);
-void _4(int line);
-void _4pixel(int line);
-void _5(int line);
-void _5pixel(int line);
-void _6(int line);
-void _6pixel(int line);
-void _7(int line);
-void _7pixel(int line);
-void _8(int line);
-void _9(int line);
-void _a(int line);
-void _A(int line);
-void _acircumflex(int line);
-void _Acircumflex(int line);
-void _ae(int line);
-void _agravis(int line);
-void _Agravis(int line);
-void _amp(int line);
-void _apos(int line);
-void _at(int line);
-void _auml(int line);
-void _Auml(int line);
-void _b(int line);
-void _B(int line);
-void _backslash(int line);
-void _backtick(int line);
-void _ballot_box(int line);
-void _ballot_box_checked(int line);
-void _beamed_eight_notes(int line);
-void _c(int line);
-void _C(int line);
-void _caret(int line);
-void _ccedille(int line);
-void _colon(int line);
-void _comma(int line);
-void _copyright(int line);
-void _cup_hot(int line);
-void _cursor(int line);
-void _d(int line);
-void _D(int line);
-void _degree(int line);
-void _dollar(int line);
-void _doppel_s(int line);
-void _doublequote(int line);
-void _e(int line);
-void _E(int line);
-void _eakut(int line);
-void _Eakut(int line);
-void _ecircumflex(int line);
-void _Ecircumflex(int line);
-void _egravis(int line);
-void _Egravis(int line);
-void _equal(int line);
-void _euml(int line);
-void _Euml(int line);
-void _exclamation(int line);
-void _f(int line);
-void _F(int line);
-void _face_frowning(int line);
-void _face_smiling(int line);
-void _g(int line);
-void _G(int line);
-void _gt(int line);
-void _gte(int line);
-void _h(int line);
-void _H(int line);
-void _hash(int line);
-void _i(int line);
-void _I(int line);
-void _icircumflex(int line);
-void _Icircumflex(int line);
-void _iuml(int line);
-void _Iuml(int line);
-void _j(int line);
-void _J(int line);
-void _k(int line);
-void _K(int line);
-void _l(int line);
-void _L(int line);
-void _lbbrace(int line);
-void _lbrace(int line);
-void _lcbrace(int line);
-void _line_bottom(int line);
-void _line_middle_horizontal(int line);
-void _lt(int line);
-void _lte(int line);
-void _m(int line);
-void _M(int line);
-void _mgt(int line);
-void _minus(int line);
-void _mlt(int line);
-void _multiplication(int line);
-void _n(int line);
-void _N(int line);
-void _nl(int line);
-void _o(int line);
-void _O(int line);
-void _ocircumflex(int line);
-void _Ocircumflex(int line);
-void _oe(int line);
-void _ouml(int line);
-void _Ouml(int line);
-void _p(int line);
-void _P(int line);
-void _parallelogram(int line);
-void _percent(int line);
-void _period(int line);
-void _phone(int line);
-void _pipe(int line);
-void _plus(int line);
-void _q(int line);
-void _Q(int line);
-void _questionmark(int line);
-void _r(int line);
-void _R(int line);
-void _rbbrace(int line);
-void _rbrace(int line);
-void _rcbrace(int line);
-void _registered(int line);
-void _s(int line);
-void _S(int line);
-void _section(int line);
-void _semicolon(int line);
-void _slash(int line);
-void _snowman(int line);
-void _space(int line);
-void _t(int line);
-void _T(int line);
-void _tab(int line);
-void _tilde(int line);
-void _u(int line);
-void _U(int line);
-void _ucircumflex(int line);
-void _Ucircumflex(int line);
-void _underscore(int line);
-void _uuml(int line);
-void _Uuml(int line);
-void _v(int line);
-void _V(int line);
-void _w(int line);
-void _W(int line);
-void _x(int line);
-void _X(int line);
-void _y(int line);
-void _Y(int line);
-void _yuml(int line);
-void _Yuml(int line);
-void _z(int line);
-void _Z(int line);
-int _0_w();
-int _1_w();
-int _1pixel_w();
-int _2_w();
-int _2pixel_w();
-int _3_w();
-int _3pixel_w();
-int _4_w();
-int _4pixel_w();
-int _5_w();
-int _5pixel_w();
-int _6_w();
-int _6pixel_w();
-int _7_w();
-int _7pixel_w();
-int _8_w();
-int _9_w();
-int _a_w();
-int _A_w();
-int _acircumflex_w();
-int _Acircumflex_w();
-int _ae_w();
-int _agravis_w();
-int _Agravis_w();
-int _amp_w();
-int _apos_w();
-int _at_w();
-int _auml_w();
-int _Auml_w();
-int _b_w();
-int _B_w();
-int _backslash_w();
-int _backtick_w();
-int _ballot_box_w();
-int _ballot_box_checked_w();
-int _beamed_eight_notes_w();
-int _c_w();
-int _C_w();
-int _caret_w();
-int _ccedille_w();
-int _colon_w();
-int _comma_w();
-int _copyright_w();
-int _cup_hot_w();
-int _cursor_w();
-int _d_w();
-int _D_w();
-int _degree_w();
-int _dollar_w();
-int _doppel_s_w();
-int _doublequote_w();
-int _e_w();
-int _E_w();
-int _eakut_w();
-int _Eakut_w();
-int _ecircumflex_w();
-int _Ecircumflex_w();
-int _egravis_w();
-int _Egravis_w();
-int _equal_w();
-int _euml_w();
-int _Euml_w();
-int _exclamation_w();
-int _f_w();
-int _F_w();
-int _face_frowning_w();
-int _face_smiling_w();
-int _g_w();
-int _G_w();
-int _gt_w();
-int _gte_w();
-int _h_w();
-int _H_w();
-int _hash_w();
-int _i_w();
-int _I_w();
-int _icircumflex_w();
-int _Icircumflex_w();
-int _iuml_w();
-int _Iuml_w();
-int _j_w();
-int _J_w();
-int _k_w();
-int _K_w();
-int _l_w();
-int _L_w();
-int _lbbrace_w();
-int _lbrace_w();
-int _lcbrace_w();
-int _line_bottom_w();
-int _line_middle_horizontal_w();
-int _lt_w();
-int _lte_w();
-int _m_w();
-int _M_w();
-int _mgt_w();
-int _minus_w();
-int _mlt_w();
-int _multiplication_w();
-int _n_w();
-int _N_w();
-int _nl_w();
-int _o_w();
-int _O_w();
-int _ocircumflex_w();
-int _Ocircumflex_w();
-int _oe_w();
-int _ouml_w();
-int _Ouml_w();
-int _p_w();
-int _P_w();
-int _parallelogram_w();
-int _percent_w();
-int _period_w();
-int _phone_w();
-int _pipe_w();
-int _plus_w();
-int _q_w();
-int _Q_w();
-int _questionmark_w();
-int _r_w();
-int _R_w();
-int _rbbrace_w();
-int _rbrace_w();
-int _rcbrace_w();
-int _registered_w();
-int _s_w();
-int _S_w();
-int _section_w();
-int _semicolon_w();
-int _slash_w();
-int _snowman_w();
-int _space_w();
-int _t_w();
-int _T_w();
-int _tab_w();
-int _tilde_w();
-int _u_w();
-int _U_w();
-int _ucircumflex_w();
-int _Ucircumflex_w();
-int _underscore_w();
-int _uuml_w();
-int _Uuml_w();
-int _v_w();
-int _V_w();
-int _w_w();
-int _W_w();
-int _x_w();
-int _X_w();
-int _y_w();
-int _Y_w();
-int _yuml_w();
-int _Yuml_w();
-int _z_w();
-int _Z_w();
+
+//margin-left
+	//x position (column)
+	int x;//=-2;		//0: first column
+				//<0: offset, trim from left
+				//>0: offset, left fill
+
+//margin-top
+	//y position (row)
+	int y;//=0;		//0: first row
+				//<0: offset, trim from top top
+				//>0: offset, fill on top
+
+//w-mode
+	//define how the width parameter should be interpreted    (eol: end of line)
+	int w_mode;//=0;	//0: x + (eol - x)	#end right side naturally at eol (absolute to eol)
+							//(no param)
+				//1: x + crop_w		#trim or extend right side if necessary (relative to x)
+				//2: eol_x + crop_w		#trim or extend right side (relative to eol)
+				//3: absolute			#make exactly crop_w wide (relative to 0) 
+
+//h-mode
+	//define how the height parameter should be interpreted   (eoc: end of char)
+	int h_mode;//=0;	//0: y + (eol - y)	#end bottom side naturally at eoc (absolute to eoc)
+							//(no param)
+				//1: y + crop_h		#trim or extend bottom side if necessary (relative to y)
+				//2: eol_y + crop_h		#trim or extend bottom side (relative to eoc)
+				//3: absolute			#make exactly crop_h high (relative to 0) 
+
+//w
+	int w;//=0; //meaning depends on w_mode
+//h
+	int h;//=0; //meaning depens on h_mode
+
+	//to be caclulated based on params
+	int limit_h;//=0;
+	int limit_w;//=0;
+};
+struct Cropper crop;
+
+
+struct Output
+{
+	int style;//=0;		//0: terminal escape sequence colrs
+				//1: bg #, fg .
+				//2: simplified rgb val, ppm/p3
+	int print_header;//=0;
+};
+struct Output output;
+
 #endif

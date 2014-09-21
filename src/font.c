@@ -1,2551 +1,581 @@
 /*
-digits.c
-part of shout
-Copyright (C) 2013 - 2014 Thomas Brand
+  font.c
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2
-of the License, or (at your option) any later version.
+  part of shout - print large pixel fonts in terminal
+  https://github.com/7890/shout
+ 
+  (C) 2014 Thomas Brand <tom@trellis.ch>
+ 
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2, or (at your option)
+  any later version.
+ 
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+ 
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software Foundation,
+  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
+/*
+gcc -o font font.c
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+http://www.unicode.org/versions/Unicode4.0.0/ch15.pdf
+
+Private Use Area: U+E000–U+F8FF (57344 - 63743)
+The primary Private Use Area consists of code
+points in the range U+E000 to U+F8FF, for
+a total of 6,400 private-use characters
+
+E000 57344
+F000 61440
+
 */
 
 #include <stdio.h>
-#include "digits.h"
+#include <stdlib.h>
+#include <string.h>
 
-//tb/130701/130703/130705/140820
+#include "font.h"
+#include "encoding_patterns.h"
+#include "chars.h"
+#include "chars_data.h"
 
-int BG_COL=40;
-int FG_COL=47;
+#define black 40
+#define lgray 47
+#define red 41
+#define green 42
+#define blue 44
+
+int BG_COL=black;
+int FG_COL=lgray;
+
+//0: decimal
+//1: U+HEX  U+ABCD
+int unicode_print_style=1;
+
+//decode spf char into this structure
+char spf_char_line[100];
+char *spf_char[LINES_PER_CHAR];
+
+int current_codepoint=-1;
+int current_char_index=-1;
+int current_char_width=0;
+
+int current_line=0;
+int current_line_pos=0;
+
+//--------------------------------
+int get_lines_per_char()
+{
+	return LINES_PER_CHAR;
+}
+
+//--------------------------------
+int get_visual_nl_cp()
+{
+	return VISUAL_NL_CP;
+}
+
+//--------------------------------
+int get_visual_tab_cp()
+{
+	return VISUAL_TAB_CP;
+}
+
+//--------------------------------
+int get_visual_unknown_cp()
+{
+	return VISUAL_UNKNOWN_CP;
+}
+
+//--------------------------------
+int get_mapping_table_index(int unicode_point)
+{
+	int i=0;
+	int mapping_table_index=-1;
+	for(i=0;i<TOTAL_CHARS;i++)
+	{
+		if(spf_mapping_table[i][0]==unicode_point)
+		{
+			//printf("found at %d, width %d\n",i,spf_mapping_table[i][1]);
+			mapping_table_index=i;
+			break;
+		}
+	}
 /*
-hightlighted 41,47
+	if(mapping_table_index==-1)
+	{
+		mapping_table_index=get_mapping_table_index(get_visual_unknown_cp());
+	}	
+*/
+	return mapping_table_index;
+}
+
+//--------------------------------
+int get_char_width(int unicode_point)
+{
+	int index=get_mapping_table_index(unicode_point);
+	if(index!=-1)
+	{
+		return spf_mapping_table[index][1];
+	}
+	return 0;
+}
+
+//--------------------------------
+int get_char_width_cropped(int unicode_point)
+{
+	int index=get_mapping_table_index(unicode_point);
+	if(index!=-1)
+	{
+//		int orig_char_width=spf_mapping_table[index][1];
+		crop_char();
+		return crop.limit_w-crop.x;
+	}
+	return 0;
+}
+
+//--------------------------------
+int get_char_height_cropped()//int unicode_point)
+{
+	crop_char();
+	return crop.limit_h-crop.y;//LINES_PER_CHAR;
+}
+
+//--------------------------------
+void print_font_info()
+{
+	int min_width=999999;
+	int max_width=0;
+
+	int min_cp=999999;
+	int max_cp=0;
+
+	int i=0;
+	for(i=0;i<TOTAL_CHARS;i++)
+	{
+		//width
+		if(spf_mapping_table[i][1]<min_width)
+		{
+			min_width=spf_mapping_table[i][1];
+		}
+		if(spf_mapping_table[i][1]>max_width)
+		{
+			max_width=spf_mapping_table[i][1];
+		}
+		//cp
+		if(spf_mapping_table[i][0]<min_cp)
+		{
+			min_cp=spf_mapping_table[i][0];
+		}
+		if(spf_mapping_table[i][0]>max_cp)
+		{
+			max_cp=spf_mapping_table[i][0];
+		}
+	}
+
+	printf("\n");
+	printf("font info\n");
+	printf("---------\n");
+	printf("name: %s\n",spf_name);
+	printf("description: %s\n",spf_desc);
+	printf("total characters / glyphs: %d\n",TOTAL_CHARS);
+
+	printf("min unicode point: %d\n",min_cp);
+	printf("max unicode point: %d\n",max_cp);
+
+	printf("glyphs height: %d\n",LINES_PER_CHAR);
+	printf("glyphs min width: %d\n",min_width);
+	printf("glyphs max width: %d\n",max_width);
+
+	printf("shout pixel font (spf) md5sum: %s\n",spf_md5sum);
+	printf("spf encoding patterns md5sum: %s\n",spf_encoding_patterns_md5sum);
+
+	printf("\n");
+
+}//end print_font_info
+
+//--------------------------------
+//print every codepoint (single, plain, header)
+void print_spf()
+{
+	int i=0;
+	for(i=0;i<TOTAL_CHARS;i++)
+	{
+//		printf("//%d %d\n",spf_mapping_table[i][0],i);
+		printf("//%d\n",spf_mapping_table[i][0]);
+		create_char(spf_mapping_table[i][0]);
+		print_char_cropped();
+	}
+}
+
+//--------------------------------
+void print_mapping_table()
+{
+	int i=0;
+	for(i=0;i<TOTAL_CHARS;i++)
+	{
+		if(unicode_print_style==0)
+		{
+			printf("%d %d\n",i,spf_mapping_table[i][0]);
+		}
+		else
+		{
+			printf("%d U+%04X\n",i,spf_mapping_table[i][0]);
+		}
+	}
+}
+
+//--------------------------------
+int fill_char_matrix()//int unicode_point)
+{
+	current_line=0;
+	current_line_pos=0;
+
+	if(current_char_index==-1)
+	{
+		fprintf(stderr,"/!\\ char not found. this should not happen.\n");
+		return -1;
+	}
+
+	//for all lines
+	int i=0;
+	for(i=0;i<LINES_PER_CHAR;i++)
+	{
+		expand_string(spf_chars[current_char_index][i]);
+		//eol
+		//printf("\n");
+
+		spf_char_line[current_line_pos]='\0';
+		spf_char[current_line]=strdup(spf_char_line);
+
+		current_line++;
+		current_line_pos=0;
+	}
+
+	return 0;
+
+} //end fill_char_matrix
+
+
+//--------------------------------
+void print_char()
+{
+	if(output.print_header==1)
+	{
+		print_char_header();
+	}
+
+	//using spf_char
+	int k=0;
+	for(k=0;k<LINES_PER_CHAR;k++)
+	{
+		print_pixels(spf_char[k]);
+		printf("\n");
+	}
+}
+
+//--------------------------------
+void print_char_line(int line)
+{
+	if(line>=0 && line<LINES_PER_CHAR)
+	{
+		print_pixels(spf_char[line]);
+	}
+}
+
+//--------------------------------
+void expand_string(char *s)
+{
+	int i=0;
+	char c;
+	//while there are more chars in null-terminated encoded spf line string
+	while((c=s[i]) != '\0')
+	{
+		expand_char(c);
+		i++;
+	}
+}
+
+//--------------------------------
+void expand_char(char c)
+{
+/*
+printf("<div class=\"spfc_row\">\n");
+printf("</div>\n");
+printf("<div class=\"spfc_fg\">&nbsp;</div>\n");
+printf("<div class=\"spfc_bg\">&nbsp;</div>\n");
 */
 
-//gcc -c digits.c -o digits.o -std=gnu99
+	//no further expansion, "primitive" pixel 0/1 #/.
+	if(c==SPF_FG)
+	{
+		//printf("line %d pos %d",current_line,current_line_pos);
+		spf_char_line[current_line_pos]=SPF_FG;
+		current_line_pos++;
+		return;
+	}
+	else if(c==SPF_BG)
+	{
+		//printf("line %d pos %d",current_line,current_line_pos);
+		spf_char_line[current_line_pos]=SPF_BG;
+		current_line_pos++;
+		return;
+	}
+
+	//further expansion, check if pattern matches (single char)
+	int match=0;
+	int k=0;
+	for(k=0;k<PATTERNS_TOTAL;k++)
+	{
+		//printf("%d %d %c. ",k,index_to_char_dec(k),index_to_char_dec(k));
+		if(c==index_to_char_dec(k))
+		{			
+			//second pass
+			expand_string(spf_encoding_patterns[k]);
+			match=1;
+			break;
+		}
+	}
+
+	if(match==0)
+	{
+		fprintf(stderr,"/!\\ encoding pattern not found: '%c'. this is an internal issue that should not happen.\n",c);
+	}
+}//end expand_char
+
+//--------------------------------
+void print_ppm_color(int color)
+{
+	if(color==black)
+	{
+		printf("0 0 0 ");
+	}
+	else if(color==lgray)
+	{
+		printf("1 1 1 ");
+	}
+	else if(color==red)
+	{
+		printf("1 0 0 ");
+	}
+	else if(color==green)
+	{
+		printf("0 1 0 ");
+	}
+	else if(color==blue)
+	{
+		printf("0 0 1 ");
+	}
+}
+
+//--------------------------------
+void bg()
+{
+	if(output.style==0)
+	{
+		printf("\e[%dm \e[0m",BG_COL);
+	}
+	else if(output.style==1)
+	{
+		printf("%c",SPF_BG);
+	}
+	else if(output.style==2)
+	{
+		print_ppm_color(BG_COL);
+	}
+}
+
+//--------------------------------
+void fg()
+{
+	if(output.style==0)
+	{
+		printf("\e[%dm \e[0m",FG_COL);
+	}
+	else if(output.style==1)
+	{
+		printf("%c",SPF_FG);
+	}
+	else if(output.style==2)
+	{
+		print_ppm_color(FG_COL);
+	}
+}
+
+//void term_escape(char *line)
+void print_pixels(char *line)
+{
+	int i=0;
+	for(i=0;i<strlen(line);i++)
+	{
+		if(line[i]==SPF_BG)
+		{
+			bg();
+		}
+		else if(line[i]==SPF_FG)
+		{
+			fg();
+		}
+	}
+}
+
+//--------------------------------
+void font_setup()
+{
+	//initial values
+	crop.x=0;
+	crop.y=0;
+
+	crop.w_mode=0;
+	crop.h_mode=0;
+	crop.w=0;
+	crop.h=0;
+
+	output.style=0;
+	output.print_header=0;
+
+	//not to set manually
+	crop.limit_h=0;
+	crop.limit_w=0;
+}
+
+//--------------------------------
+//sets current_codepoint, current_char_width, current_char_index
+//and crop limits
+//int prepare_char(int unicode_point)
+int create_char(int unicode_point)
+{
+	current_codepoint=-1;
+	current_char_index=-1;
+	current_char_width=-1;
+
+	current_line=0;
+	current_line_pos=0;
+
+	int index=get_mapping_table_index(unicode_point);
+
+	if(index<0)
+	{
+		//fprintf(stderr,"/!\\ codepoint not found\n");
+		return -1;
+	}
+
+	current_codepoint=unicode_point;
+
+	current_char_index=index;
+
+	current_char_width=get_char_width(current_codepoint);
+
+	//printf("char width: %d\n",current_char_width);
+
+	return fill_char_matrix();
+
+}//end create_char
+
+//using properties in crop struct
+void crop_char()
+{
+	if(crop.h_mode==0)
+	{
+		crop.limit_h=LINES_PER_CHAR;
+	}
+	else if(crop.h_mode==1)
+	{
+		crop.limit_h=crop.y+crop.h;
+	}
+	else if(crop.h_mode==2)
+	{
+		//h +/-
+		crop.limit_h=LINES_PER_CHAR+crop.h;
+	}
+	else if(crop.h_mode==3)
+	{
+		crop.limit_h=crop.h;
+	}
+	if(crop.w_mode==0)
+	{
+		crop.limit_w=current_char_width;
+	}
+	else if(crop.w_mode==1)
+	{
+		crop.limit_w=crop.x+crop.w;
+	}
+	else if(crop.w_mode==2)
+	{
+		//w +/-
+		crop.limit_w=current_char_width+crop.w;
+	}
+	else if(crop.w_mode==3)
+	{
+		crop.limit_w=crop.w;
+	}
+	if(crop.x>=crop.limit_w || crop.y>=crop.limit_h)
+	{
+		fprintf(stderr,"/!\\ wrong crop dimension (%d %d %d %d) for code point %d, sorry\n",crop.x,crop.limit_w,crop.y,crop.limit_h,current_codepoint);
+	}
+}//end crop_char
+
+void print_char_header()
+{
+	///////////////////////
+	///cropped will need a different header
+
+	//header: codepoint, index, width
+	printf("//%d %d %d\n",current_codepoint,current_char_index, current_char_width);
+}
+
+//--------------------------------
+//using spf_char structure
+//line -1: all
+void print_char_line_cropped(int line)
+{
+	crop_char();
+
+	int l=0;
+	//for(l=0;l<NUMBER_OF_LINES;l++)
+	for(l=crop.y;l<crop.limit_h;l++)
+	{
+		if(l==line+crop.y || line==-1)
+		{
+			int i=0;
+			for(i=crop.x; i<crop.limit_w;i++)
+			{
+				//outside of char area. expand / fill canvas with bg
+				if(l<0 || i <0 || l>=LINES_PER_CHAR || i>=current_char_width)
+				{
+					bg();
+				}
+				else if(spf_char[l][i]==SPF_FG)
+				{
+					fg();
+				}
+				else //# is bg
+				{
+					bg();
+				}
+			}//end for columns
+		}
+		if(line==-1)
+		{
+			printf("\n");//end row
+		}
+	} //end for rows
+}//end print_char_line_cropped
+
+//--------------------------------
+//using spf_char structure
+void print_char_cropped()
+{
+	if(output.print_header==1)
+	{
+		print_char_header();
+	}
+	print_char_line_cropped(-1);
+}//end print_cropped_char
 
-void bg(int i)
-{
-        for(int c=0;c<i;c++)
-        {
-                printf("\e[%dm \e[0m",BG_COL);
-        }
-}
-void fg(int i)
-{
-        for(int c=0;c<i;c++)
-        {
-                printf("\e[%dm \e[0m",FG_COL);
-        }
-}
-void nl_(int line)
-{
-        if(line==0)
-        {
-                printf("\n");
-        }
-}
-
-void _0(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..#...# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #...#..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _0_w()
-{
-	return 8;
-}
-void _1(int line)
-{
-/* ###..### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##...### */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _1_w()
-{
-	return 8;
-}
-void _1pixel(int line)
-{
-/* # */	if(line==0 || line==1){bg(1);nl_(line);}
-/* # */	if(line==0 || line==2){bg(1);nl_(line);}
-/* # */	if(line==0 || line==3){bg(1);nl_(line);}
-/* # */	if(line==0 || line==4){bg(1);nl_(line);}
-/* # */	if(line==0 || line==5){bg(1);nl_(line);}
-/* # */	if(line==0 || line==6){bg(1);nl_(line);}
-/* # */	if(line==0 || line==7){bg(1);nl_(line);}
-/* # */	if(line==0 || line==8){bg(1);nl_(line);}
-
-}
-int _1pixel_w()
-{
-	return 1;
-}
-void _2(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _2_w()
-{
-	return 8;
-}
-void _2pixel(int line)
-{
-/* ## */	if(line==0 || line==1){bg(1);bg(1);nl_(line);}
-/* ## */	if(line==0 || line==2){bg(1);bg(1);nl_(line);}
-/* ## */	if(line==0 || line==3){bg(1);bg(1);nl_(line);}
-/* ## */	if(line==0 || line==4){bg(1);bg(1);nl_(line);}
-/* ## */	if(line==0 || line==5){bg(1);bg(1);nl_(line);}
-/* ## */	if(line==0 || line==6){bg(1);bg(1);nl_(line);}
-/* ## */	if(line==0 || line==7){bg(1);bg(1);nl_(line);}
-/* ## */	if(line==0 || line==8){bg(1);bg(1);nl_(line);}
-
-}
-int _2pixel_w()
-{
-	return 2;
-}
-void _3(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ###...## */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _3_w()
-{
-	return 8;
-}
-void _3pixel(int line)
-{
-/* ### */	if(line==0 || line==1){bg(1);bg(1);bg(1);nl_(line);}
-/* ### */	if(line==0 || line==2){bg(1);bg(1);bg(1);nl_(line);}
-/* ### */	if(line==0 || line==3){bg(1);bg(1);bg(1);nl_(line);}
-/* ### */	if(line==0 || line==4){bg(1);bg(1);bg(1);nl_(line);}
-/* ### */	if(line==0 || line==5){bg(1);bg(1);bg(1);nl_(line);}
-/* ### */	if(line==0 || line==6){bg(1);bg(1);bg(1);nl_(line);}
-/* ### */	if(line==0 || line==7){bg(1);bg(1);bg(1);nl_(line);}
-/* ### */	if(line==0 || line==8){bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _3pixel_w()
-{
-	return 3;
-}
-void _4(int line)
-{
-/* #####..# */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ####...# */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ###....# */	if(line==0 || line==3){bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #....... */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _4_w()
-{
-	return 8;
-}
-void _4pixel(int line)
-{
-/* #### */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #### */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #### */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #### */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #### */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #### */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #### */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #### */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _4pixel_w()
-{
-	return 4;
-}
-void _5(int line)
-{
-/* #......# */	if(line==0 || line==1){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _5_w()
-{
-	return 8;
-}
-void _5pixel(int line)
-{
-/* ##### */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##### */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##### */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##### */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##### */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##### */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##### */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##### */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _5pixel_w()
-{
-	return 5;
-}
-void _6(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _6_w()
-{
-	return 8;
-}
-void _6pixel(int line)
-{
-/* ###### */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###### */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###### */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###### */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###### */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###### */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###### */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###### */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _6pixel_w()
-{
-	return 6;
-}
-void _7(int line)
-{
-/* #......# */	if(line==0 || line==1){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _7_w()
-{
-	return 8;
-}
-void _7pixel(int line)
-{
-/* ####### */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####### */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####### */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####### */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####### */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####### */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####### */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####### */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _7pixel_w()
-{
-	return 7;
-}
-void _8(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _8_w()
-{
-	return 8;
-}
-void _9(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _9_w()
-{
-	return 8;
-}
-void _a(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _a_w()
-{
-	return 8;
-}
-void _A(int line)
-{
-/* ###..### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==2){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _A_w()
-{
-	return 8;
-}
-void _acircumflex(int line)
-{
-/* ###.#### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.#.### */	if(line==0 || line==2){bg(1);bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _acircumflex_w()
-{
-	return 8;
-}
-void _Acircumflex(int line)
-{
-/* ###.#### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.#.### */	if(line==0 || line==2){bg(1);bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Acircumflex_w()
-{
-	return 8;
-}
-void _ae(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..#..## */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###.##.# */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* .##.#### */	if(line==0 || line==6){fg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..#...# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _ae_w()
-{
-	return 8;
-}
-void _agravis(int line)
-{
-/* ##.##### */	if(line==0 || line==1){bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###.#### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _agravis_w()
-{
-	return 8;
-}
-void _Agravis(int line)
-{
-/* ##.##### */	if(line==0 || line==1){bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Agravis_w()
-{
-	return 8;
-}
-void _amp(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ##...### */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##... */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##...... */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _amp_w()
-{
-	return 8;
-}
-void _apos(int line)
-{
-/* ###..### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _apos_w()
-{
-	return 8;
-}
-void _at(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..#...# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..#...# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..###.# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _at_w()
-{
-	return 8;
-}
-void _auml(int line)
-{
-/* #.####.# */	if(line==0 || line==1){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _auml_w()
-{
-	return 8;
-}
-void _Auml(int line)
-{
-/* #.####.# */	if(line==0 || line==1){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Auml_w()
-{
-	return 8;
-}
-void _b(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _b_w()
-{
-	return 8;
-}
-void _B(int line)
-{
-/* #.....## */	if(line==0 || line==1){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _B_w()
-{
-	return 8;
-}
-void _backslash(int line)
-{
-/* ..###### */	if(line==0 || line==1){fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######.. */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _backslash_w()
-{
-	return 8;
-}
-void _backtick(int line)
-{
-/* ##..#### */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _backtick_w()
-{
-	return 8;
-}
-void _ballot_box(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==2){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.####.# */	if(line==0 || line==3){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* #.####.# */	if(line==0 || line==4){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* #.####.# */	if(line==0 || line==5){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* #.####.# */	if(line==0 || line==6){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _ballot_box_w()
-{
-	return 8;
-}
-void _ballot_box_checked(int line)
-{
-/* #######. */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);nl_(line);}
-/* #......# */	if(line==0 || line==2){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.###..# */	if(line==0 || line==3){bg(1);fg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..#.#.# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);fg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* #.#.##.# */	if(line==0 || line==5){bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* #.####.# */	if(line==0 || line==6){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _ballot_box_checked_w()
-{
-	return 8;
-}
-void _beamed_eight_notes(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##...### */	if(line==0 || line==2){bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.##..# */	if(line==0 || line==3){bg(1);bg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.###.# */	if(line==0 || line==4){bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ##.###.# */	if(line==0 || line==5){bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ...###.# */	if(line==0 || line==6){fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ####...# */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _beamed_eight_notes_w()
-{
-	return 8;
-}
-void _c(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _c_w()
-{
-	return 8;
-}
-void _C(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _C_w()
-{
-	return 8;
-}
-void _caret(int line)
-{
-/* ####.### */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###...## */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ##..#..# */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..###.. */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _caret_w()
-{
-	return 8;
-}
-void _ccedille(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==2){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####.### */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==8){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _ccedille_w()
-{
-	return 8;
-}
-void _colon(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==3){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _colon_w()
-{
-	return 8;
-}
-void _comma(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==8){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _comma_w()
-{
-	return 8;
-}
-void _copyright(int line)
-{
-/* ##.....# */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.#####. */	if(line==0 || line==2){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);nl_(line);}
-/* #.##..#. */	if(line==0 || line==3){bg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);fg(1);nl_(line);}
-/* #.#.###. */	if(line==0 || line==4){bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);fg(1);nl_(line);}
-/* #.##..#. */	if(line==0 || line==5){bg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);fg(1);nl_(line);}
-/* #.#####. */	if(line==0 || line==6){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _copyright_w()
-{
-	return 8;
-}
-void _cup_hot(int line)
-{
-/* #.#.#### */	if(line==0 || line==1){bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.#.### */	if(line==0 || line==2){bg(1);bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #....... */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #.....#. */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);fg(1);nl_(line);}
-/* #......# */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==6){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _cup_hot_w()
-{
-	return 8;
-}
-void _cursor(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #.###### */	if(line==0 || line==6){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #.###### */	if(line==0 || line==7){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ..###### */	if(line==0 || line==8){fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _cursor_w()
-{
-	return 8;
-}
-void _d(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _d_w()
-{
-	return 8;
-}
-void _D(int line)
-{
-/* #....### */	if(line==0 || line==1){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..#..## */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..#..## */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #....### */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _D_w()
-{
-	return 8;
-}
-void _degree(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.##.## */	if(line==0 || line==3){bg(1);bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _degree_w()
-{
-	return 8;
-}
-void _dollar(int line)
-{
-/* ###..### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==2){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==6){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _dollar_w()
-{
-	return 8;
-}
-void _doppel_s(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==2){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..#..## */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..#..## */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==8){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _doppel_s_w()
-{
-	return 8;
-}
-void _doublequote(int line)
-{
-/* ##..#..# */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##..#..# */	if(line==0 || line==2){bg(1);bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _doublequote_w()
-{
-	return 8;
-}
-void _e(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _e_w()
-{
-	return 8;
-}
-void _E(int line)
-{
-/* #......# */	if(line==0 || line==1){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #....### */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _E_w()
-{
-	return 8;
-}
-void _eakut(int line)
-{
-/* #####.## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####.### */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _eakut_w()
-{
-	return 8;
-}
-void _Eakut(int line)
-{
-/* ####.### */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###.#### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #....### */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Eakut_w()
-{
-	return 8;
-}
-void _ecircumflex(int line)
-{
-/* ###.#### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.#.### */	if(line==0 || line==2){bg(1);bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _ecircumflex_w()
-{
-	return 8;
-}
-void _Ecircumflex(int line)
-{
-/* ###.#### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.#.### */	if(line==0 || line==2){bg(1);bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #....### */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Ecircumflex_w()
-{
-	return 8;
-}
-void _egravis(int line)
-{
-/* ##.##### */	if(line==0 || line==1){bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###.#### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _egravis_w()
-{
-	return 8;
-}
-void _Egravis(int line)
-{
-/* ##.##### */	if(line==0 || line==1){bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###.#### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #....### */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Egravis_w()
-{
-	return 8;
-}
-void _equal(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _equal_w()
-{
-	return 8;
-}
-void _euml(int line)
-{
-/* #.####.# */	if(line==0 || line==1){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _euml_w()
-{
-	return 8;
-}
-void _Euml(int line)
-{
-/* #.####.# */	if(line==0 || line==1){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #....### */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Euml_w()
-{
-	return 8;
-}
-void _exclamation(int line)
-{
-/* ###..### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==3){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _exclamation_w()
-{
-	return 8;
-}
-void _f(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####...# */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==3){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _f_w()
-{
-	return 8;
-}
-void _F(int line)
-{
-/* #......# */	if(line==0 || line==1){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #....### */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _F_w()
-{
-	return 8;
-}
-void _face_frowning(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.###.# */	if(line==0 || line==2){bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ##.###.# */	if(line==0 || line==3){bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###...## */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ##.###.# */	if(line==0 || line==6){bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* #.#####. */	if(line==0 || line==7){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _face_frowning_w()
-{
-	return 8;
-}
-void _face_smiling(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.###.# */	if(line==0 || line==2){bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ##.###.# */	if(line==0 || line==3){bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #.#####. */	if(line==0 || line==5){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);nl_(line);}
-/* ##.###.# */	if(line==0 || line==6){bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ###...## */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _face_smiling_w()
-{
-	return 8;
-}
-void _g(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==8){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _g_w()
-{
-	return 8;
-}
-void _G(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..#...# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _G_w()
-{
-	return 8;
-}
-void _gt(int line)
-{
-/* ##..#### */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _gt_w()
-{
-	return 8;
-}
-void _gte(int line)
-{
-/* ###..### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #....... */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #....... */	if(line==0 || line==6){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _gte_w()
-{
-	return 8;
-}
-void _h(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _h_w()
-{
-	return 8;
-}
-void _H(int line)
-{
-/* #..##..# */	if(line==0 || line==1){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _H_w()
-{
-	return 8;
-}
-void _hash(int line)
-{
-/* #..##..# */	if(line==0 || line==1){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ........ */	if(line==0 || line==3){fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ........ */	if(line==0 || line==5){fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _hash_w()
-{
-	return 8;
-}
-void _i(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##...### */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _i_w()
-{
-	return 8;
-}
-void _I(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==3){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _I_w()
-{
-	return 8;
-}
-void _icircumflex(int line)
-{
-/* ###.#### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.#.### */	if(line==0 || line==2){bg(1);bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##...### */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _icircumflex_w()
-{
-	return 8;
-}
-void _Icircumflex(int line)
-{
-/* ###.#### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.#.### */	if(line==0 || line==2){bg(1);bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Icircumflex_w()
-{
-	return 8;
-}
-void _iuml(int line)
-{
-/* #.####.# */	if(line==0 || line==1){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##...### */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _iuml_w()
-{
-	return 8;
-}
-void _Iuml(int line)
-{
-/* #.####.# */	if(line==0 || line==1){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Iuml_w()
-{
-	return 8;
-}
-void _j(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==8){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _j_w()
-{
-	return 8;
-}
-void _J(int line)
-{
-/* ###....# */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..#..## */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ##...### */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _J_w()
-{
-	return 8;
-}
-void _k(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..#..## */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #....### */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..#..## */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _k_w()
-{
-	return 8;
-}
-void _K(int line)
-{
-/* #..##..# */	if(line==0 || line==1){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..#..## */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #....### */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #...#### */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #....### */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..#..## */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _K_w()
-{
-	return 8;
-}
-void _l(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##...### */	if(line==0 || line==2){bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==3){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _l_w()
-{
-	return 8;
-}
-void _L(int line)
-{
-/* #..##### */	if(line==0 || line==1){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _L_w()
-{
-	return 8;
-}
-void _lbbrace(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==2){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _lbbrace_w()
-{
-	return 8;
-}
-void _lbrace(int line)
-{
-/* ####..## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _lbrace_w()
-{
-	return 8;
-}
-void _lcbrace(int line)
-{
-/* ###...## */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==2){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###...## */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _lcbrace_w()
-{
-	return 8;
-}
-void _line_bottom(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ........ */	if(line==0 || line==7){fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _line_bottom_w()
-{
-	return 8;
-}
-void _line_middle_horizontal(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ........ */	if(line==0 || line==5){fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _line_middle_horizontal_w()
-{
-	return 8;
-}
-void _lt(int line)
-{
-/* ####..## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _lt_w()
-{
-	return 8;
-}
-void _lte(int line)
-{
-/* ###..### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==2){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* .......# */	if(line==0 || line==4){fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* .......# */	if(line==0 || line==6){fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _lte_w()
-{
-	return 8;
-}
-void _m(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #....... */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #....... */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #..#.#.. */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);fg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #..###.. */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _m_w()
-{
-	return 8;
-}
-void _M(int line)
-{
-/* #..###.. */	if(line==0 || line==1){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #...#... */	if(line==0 || line==2){bg(1);fg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #....... */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #..#.#.. */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);fg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #..###.. */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #..###.. */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #..###.. */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _M_w()
-{
-	return 8;
-}
-void _mgt(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ..##..## */	if(line==0 || line==3){fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##..##.. */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ..##..## */	if(line==0 || line==7){fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _mgt_w()
-{
-	return 8;
-}
-void _minus(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _minus_w()
-{
-	return 8;
-}
-void _mlt(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..##.. */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ..##..## */	if(line==0 || line==5){fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##..##.. */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _mlt_w()
-{
-	return 8;
-}
-void _multiplication(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ........ */	if(line==0 || line==4){fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _multiplication_w()
-{
-	return 8;
-}
-void _n(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _n_w()
-{
-	return 8;
-}
-void _N(int line)
-{
-/* #..##..# */	if(line==0 || line==1){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #...#..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..#...# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _N_w()
-{
-	return 8;
-}
-void _nl(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.##..# */	if(line==0 || line==4){bg(1);bg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* .......# */	if(line==0 || line==6){fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.##### */	if(line==0 || line==8){bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _nl_w()
-{
-	return 8;
-}
-void _o(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _o_w()
-{
-	return 8;
-}
-void _O(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _O_w()
-{
-	return 8;
-}
-void _ocircumflex(int line)
-{
-/* ###.#### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.#.### */	if(line==0 || line==2){bg(1);bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _ocircumflex_w()
-{
-	return 8;
-}
-void _Ocircumflex(int line)
-{
-/* ###.#### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.#.### */	if(line==0 || line==2){bg(1);bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Ocircumflex_w()
-{
-	return 8;
-}
-void _oe(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..#..## */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* .##.##.# */	if(line==0 || line==4){fg(1);bg(1);bg(1);fg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* .##....# */	if(line==0 || line==5){fg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* .##.#### */	if(line==0 || line==6){fg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..#...# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _oe_w()
-{
-	return 8;
-}
-void _ouml(int line)
-{
-/* #.####.# */	if(line==0 || line==1){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _ouml_w()
-{
-	return 8;
-}
-void _Ouml(int line)
-{
-/* #.####.# */	if(line==0 || line==1){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==2){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Ouml_w()
-{
-	return 8;
-}
-void _p(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==6){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==8){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _p_w()
-{
-	return 8;
-}
-void _P(int line)
-{
-/* #.....## */	if(line==0 || line==1){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _P_w()
-{
-	return 8;
-}
-void _parallelogram(int line)
-{
-/* ################### */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######............# */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####............## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####............### */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###............#### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##............##### */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #............###### */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ################### */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _parallelogram_w()
-{
-	return 19;
-}
-void _percent(int line)
-{
-/* #..###.# */	if(line==0 || line==1){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.###..# */	if(line==0 || line==7){bg(1);fg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _percent_w()
-{
-	return 8;
-}
-void _period(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _period_w()
-{
-	return 8;
-}
-void _phone(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==2){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ..####.. */	if(line==0 || line==3){fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.####.# */	if(line==0 || line==6){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _phone_w()
-{
-	return 8;
-}
-void _pipe(int line)
-{
-/* ###..### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==3){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==8){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _pipe_w()
-{
-	return 8;
-}
-void _plus(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==3){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _plus_w()
-{
-	return 8;
-}
-void _q(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-
-}
-int _q_w()
-{
-	return 8;
-}
-void _Q(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####...# */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Q_w()
-{
-	return 8;
-}
-void _questionmark(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _questionmark_w()
-{
-	return 8;
-}
-void _r(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _r_w()
-{
-	return 8;
-}
-void _R(int line)
-{
-/* #.....## */	if(line==0 || line==1){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #....### */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..#..## */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _R_w()
-{
-	return 8;
-}
-void _rbbrace(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _rbbrace_w()
-{
-	return 8;
-}
-void _rbrace(int line)
-{
-/* ##..#### */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _rbrace_w()
-{
-	return 8;
-}
-void _rcbrace(int line)
-{
-/* ##...### */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ##...### */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _rcbrace_w()
-{
-	return 8;
-}
-void _registered(int line)
-{
-/* ##.....# */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.#####. */	if(line==0 || line==2){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);nl_(line);}
-/* #.#...#. */	if(line==0 || line==3){bg(1);fg(1);bg(1);fg(1);fg(1);fg(1);bg(1);fg(1);nl_(line);}
-/* #.#.#.#. */	if(line==0 || line==4){bg(1);fg(1);bg(1);fg(1);bg(1);fg(1);bg(1);fg(1);nl_(line);}
-/* #.#..##. */	if(line==0 || line==5){bg(1);fg(1);bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);nl_(line);}
-/* #.#.#.#. */	if(line==0 || line==6){bg(1);fg(1);bg(1);fg(1);bg(1);fg(1);bg(1);fg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _registered_w()
-{
-	return 8;
-}
-void _s(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #.....## */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _s_w()
-{
-	return 8;
-}
-void _S(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _S_w()
-{
-	return 8;
-}
-void _section(int line)
-{
-/* ##....## */	if(line==0 || line==1){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #.###### */	if(line==0 || line==2){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #.####.# */	if(line==0 || line==4){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######.# */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* #-....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _section_w()
-{
-	return 8;
-}
-void _semicolon(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==3){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==8){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _semicolon_w()
-{
-	return 8;
-}
-void _slash(int line)
-{
-/* ######.. */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ..###### */	if(line==0 || line==7){fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _slash_w()
-{
-	return 8;
-}
-void _snowman(int line)
-{
-/* #......# */	if(line==0 || line==1){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ..#.#... */	if(line==0 || line==2){fg(1);fg(1);bg(1);fg(1);bg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* ...#.... */	if(line==0 || line==3){fg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #......# */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ........ */	if(line==0 || line==5){fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* ...#.... */	if(line==0 || line==6){fg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* ........ */	if(line==0 || line==7){fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #......# */	if(line==0 || line==8){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-
-}
-int _snowman_w()
-{
-	return 8;
-}
-void _space(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _space_w()
-{
-	return 8;
-}
-void _t(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ####...# */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _t_w()
-{
-	return 8;
-}
-void _T(int line)
-{
-/* #......# */	if(line==0 || line==1){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==2){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==3){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _T_w()
-{
-	return 8;
-}
-void _tab(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #####.## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #....... */	if(line==0 || line==4){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####.## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _tab_w()
-{
-	return 8;
-}
-void _tilde(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..##.# */	if(line==0 || line==2){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* #.##..## */	if(line==0 || line==3){bg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _tilde_w()
-{
-	return 8;
-}
-void _u(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _u_w()
-{
-	return 8;
-}
-void _U(int line)
-{
-/* #..##..# */	if(line==0 || line==1){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _U_w()
-{
-	return 8;
-}
-void _ucircumflex(int line)
-{
-/* ###.#### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.#.### */	if(line==0 || line==2){bg(1);bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _ucircumflex_w()
-{
-	return 8;
-}
-void _Ucircumflex(int line)
-{
-/* ###.#### */	if(line==0 || line==1){bg(1);bg(1);bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##.#.### */	if(line==0 || line==2){bg(1);bg(1);fg(1);bg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Ucircumflex_w()
-{
-	return 8;
-}
-void _underscore(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==5){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==6){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _underscore_w()
-{
-	return 8;
-}
-void _uuml(int line)
-{
-/* #.####.# */	if(line==0 || line==1){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _uuml_w()
-{
-	return 8;
-}
-void _Uuml(int line)
-{
-/* #.####.# */	if(line==0 || line==1){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Uuml_w()
-{
-	return 8;
-}
-void _v(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _v_w()
-{
-	return 8;
-}
-void _V(int line)
-{
-/* #..##..# */	if(line==0 || line==1){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _V_w()
-{
-	return 8;
-}
-void _w(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..###.. */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #..#.#.. */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);fg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #....... */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##..#..# */	if(line==0 || line==7){bg(1);bg(1);fg(1);fg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _w_w()
-{
-	return 8;
-}
-void _W(int line)
-{
-/* #..###.. */	if(line==0 || line==1){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #..###.. */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #..###.. */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #..#.#.. */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);fg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* #....... */	if(line==0 || line==5){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #...#... */	if(line==0 || line==6){bg(1);fg(1);fg(1);fg(1);bg(1);fg(1);fg(1);fg(1);nl_(line);}
-/* #..###.. */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);fg(1);fg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _W_w()
-{
-	return 8;
-}
-void _x(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _x_w()
-{
-	return 8;
-}
-void _X(int line)
-{
-/* #..##..# */	if(line==0 || line==1){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==3){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==7){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _X_w()
-{
-	return 8;
-}
-void _y(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #....### */	if(line==0 || line==8){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _y_w()
-{
-	return 8;
-}
-void _Y(int line)
-{
-/* #..##..# */	if(line==0 || line==1){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==2){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Y_w()
-{
-	return 8;
-}
-void _yuml(int line)
-{
-/* #.####.# */	if(line==0 || line==1){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==4){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==5){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##.....# */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==7){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* #....### */	if(line==0 || line==8){bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _yuml_w()
-{
-	return 8;
-}
-void _Yuml(int line)
-{
-/* #.####.# */	if(line==0 || line==1){bg(1);fg(1);bg(1);bg(1);bg(1);bg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##..# */	if(line==0 || line==3){bg(1);fg(1);fg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ##....## */	if(line==0 || line==4){bg(1);bg(1);fg(1);fg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==6){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==7){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Yuml_w()
-{
-	return 8;
-}
-void _z(int line)
-{
-/* ######## */	if(line==0 || line==1){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==3){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==4){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==5){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==6){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _z_w()
-{
-	return 8;
-}
-void _Z(int line)
-{
-/* #......# */	if(line==0 || line==1){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* #####..# */	if(line==0 || line==2){bg(1);bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ####..## */	if(line==0 || line==3){bg(1);bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);nl_(line);}
-/* ###..### */	if(line==0 || line==4){bg(1);bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* ##..#### */	if(line==0 || line==5){bg(1);bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #..##### */	if(line==0 || line==6){bg(1);fg(1);fg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-/* #......# */	if(line==0 || line==7){bg(1);fg(1);fg(1);fg(1);fg(1);fg(1);fg(1);bg(1);nl_(line);}
-/* ######## */	if(line==0 || line==8){bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);bg(1);nl_(line);}
-
-}
-int _Z_w()
-{
-	return 8;
-}

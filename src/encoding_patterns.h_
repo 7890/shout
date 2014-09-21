@@ -1,0 +1,189 @@
+/*
+  encoding_patterns.h(.header)
+
+  part of shout - print large pixel fonts in terminal
+  https://github.com/7890/shout
+ 
+  (C) 2013-2014 Thomas Brand <tom@trellis.ch>
+ 
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2, or (at your option)
+  any later version.
+ 
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+ 
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software Foundation,
+  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
+
+#ifndef ENCODING_PATTERNS_H_INCLUDED
+#define ENCODING_PATTERNS_H_INCLUDED
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+//tb/140903
+
+/*
+pseudo encode shout font chars using dictionary
+
+ascii dec values
+0-9: [48,57]
+A-Z: [65,90]
+a-z: [97,122]
+
+symbols table index
+a-z     [0,25]
+A-Z     [26,51]
+0-9     [52,61]
+
+symbols table logical ranges
+a-z,A-F:   [0,25],[26,31]      32  //top used full lines
+G-T:       [32,45]           14  //generic patterns
+U-Z,0-9:   [46,51],[52,61]     16  //2nd pass strings
+------------------------------
+                           62
+*/
+
+#define TOP_USED_LINES_START 0
+
+#define GENERIC_PATTERNS_START 32
+
+#define SECOND_PASS_START 46
+
+//patterns in symbol table
+#define PATTERNS_TOTAL 62
+
+#define CHARS_IN_ALPHABET 26
+
+//ordered by symbol table index
+//a-z
+#define PATT_a_IND 0
+
+//A-Z
+#define PATT_A_IND 26
+
+//0-9
+#define PATT_0_IND 52
+
+char SPF_FG='.';
+char SPF_BG='#';
+
+//map char to corresponding symbols table index
+int char_dec_to_index(int char_val)
+{
+	if('0'<=char_val && char_val<'0'+10)
+	{
+		return char_val-'0';
+	}
+	else if('A'<=char_val && char_val<'A'+CHARS_IN_ALPHABET)
+	{
+		return char_val-'A';
+	}
+	else if('a'<=char_val && char_val<'a'+CHARS_IN_ALPHABET)
+	{
+		return char_val-'a';
+	}
+	else
+	{
+		fprintf(stderr,"/!\\ error in char_dec_to_index.\n");
+	}
+	return -1;
+}
+
+//map symbols table index to corresponding char
+int index_to_char_dec(int index)
+{
+	if(PATT_a_IND<=index && index<PATT_a_IND+CHARS_IN_ALPHABET) //a-z
+	{
+		return index+'a';
+	}
+	else if(PATT_A_IND<=index && index<PATT_A_IND+CHARS_IN_ALPHABET) //A-Z
+	{
+		return index-PATT_A_IND+'A';
+	}
+	else if(PATT_0_IND<=index && index<PATT_0_IND+10) //0-9
+	{
+		return index-PATT_0_IND+'0';
+	}
+	else
+	{
+		fprintf(stderr,"/!\\ error in index_to_char_dec.\n");
+	}
+	return -1;
+}
+
+char *spf_md5sum="28075d3ce97bda450e24bd83144826e7";
+char *spf_encoding_patterns_md5sum="7bddf27b4a4fbaa91140a3b6990f2a4b";
+char *spf_encoding_patterns[PATTERNS_TOTAL]={
+"########",
+"#..##..#",
+"###..###",
+"##....##",
+"#..#####",
+"#......#",
+"####..##",
+"#####..#",
+"##..####",
+"##.....#",
+"#.....##",
+"#.####.#",
+"#.......",
+"###.####",
+"#....###",
+"#..###..",
+"#..#..##",
+"##.#.###",
+"##...###",
+"##.###.#",
+"#..#...#",
+"###...##",
+"####...#",
+"#.#####.",
+"........",
+"####.###",
+"##.#####",
+"##..#..#",
+"#..#.#..",
+"##..##..",
+"#.##..#.",
+"#....##.",
+"########",
+"####",
+"##",
+"........",
+"....",
+"..",
+".#.#.#.#.#.#.#.#",
+".#.#.#.#",
+".#.#",
+".#",
+"#.#.#.#.#.#.#.#.",
+"#.#.#.#.",
+"#.#.",
+"#.",
+".I.IP",
+"#LPL.",
+"TILI",
+"TI#L#",
+"TIK",
+"TI.I.",
+"THI",
+"#PLP.",
+"#PLI.",
+"#P.IT",
+"#P.IP",
+"#P.H",
+"#OP.",
+"L#PL.",
+"#LPL#",
+"LPK"
+};
+#endif

@@ -41,12 +41,13 @@ ARCH ?= "i386"
 
 ###############################################################################
 
-#default: $(PROGNAME)
-#all: $(PROGNAME) manpage
+#https://www.gnu.org/software/make/manual/html_node/Parallel.html
+#You can inhibit parallelism in a particular makefile with the .NOTPARALLEL pseudo-target
+.NOTPARALLEL:
 
-default: compile
+all: cshout ushout
 
-compile: cshout ushout
+default: all
 
 $(SRC)/encoding_patterns.h.header:
 $(SRC)/spfenc.c:

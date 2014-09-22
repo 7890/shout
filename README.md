@@ -6,7 +6,7 @@ shout - alphanumeric terminal chars
 ```
   cat /tmp/a.txt | shout --uni --img --autowidth - > doc/shout5.png
 ```
-![shout example 2](doc/shout4.png?raw=true)
+![shout example 2](doc/shout5.png?raw=true)
 
 ```
 shout --img --top 1 --right 5 --bottom 4 --autowidth --resize 400x --trans black --negate --eval "☕" > doc/shout6.png

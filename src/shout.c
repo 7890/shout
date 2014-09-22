@@ -711,7 +711,7 @@ int process()
 
 	if(options.debug==1)
 	{
-		fprintf(stderr,"input string length (bytes) %lu (characters) %d\n",bytes,inchars);
+		fprintf(stderr,"input string length (bytes) %zu (characters) %d\n",bytes,inchars);
 	}
 
 	int finished=0;

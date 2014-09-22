@@ -1,0 +1,8 @@
+when a character was changed or new characters were added:
+
+simply concatenate all characters to one file and gzip -9 it:
+
+cd fonts
+cat c64_extended_single/_* | gzip -9 > c64_extended.spf.gz
+
+the new c64_extended.spf.gz will be used by make

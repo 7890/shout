@@ -1,7 +1,17 @@
 shout - alphanumeric terminal chars
 ===================================
 
-![shout example 1](doc/shout4.png?raw=true)
+![shout example 1](doc/shout4.5.png?raw=true)
+
+```
+  cat /tmp/a.txt | shout --uni --img --autowidth - > doc/shout5.png
+```
+![shout example 2](doc/shout4.png?raw=true)
+
+```
+shout --img --top 1 --right 5 --bottom 4 --autowidth --resize 400x --trans black --negate --eval "☕" > doc/shout6.png
+```
+![shout example 3](doc/shout6.png?raw=true)
 
 Install on Linux
 ----------------
@@ -10,11 +20,17 @@ Install on Linux
   git clone git://github.com/7890/shout.git
   cd shout
   make
-  ./shout 123
+  #test
+  build/c/cshout 123 && build/u/ushout 456
   #sudo make install
   #will install to /usr/local/bin, /usr/local/share/man/man1
-
   #alternatively use a binary package from dist/
+
+  #shout is a wrapper to cshout (c64_extended) and ushout (unifont 7)
+  #and ishout (wrapper for png image output)
+  #shout 123
+  #shout --img 123 | display -
+
 ```
 
 How does shout differ from figlet?

@@ -120,8 +120,8 @@ int index_to_char_dec(int index)
 	return -1;
 }
 
-char *spf_md5sum="28075d3ce97bda450e24bd83144826e7";
-char *spf_encoding_patterns_md5sum="7bddf27b4a4fbaa91140a3b6990f2a4b";
+char *spf_md5sum="ef45d87c48e8792f3f44810d989e3d47";
+char *spf_encoding_patterns_md5sum="6104a4329690fb640613b11f1c71bc5d";
 char *spf_encoding_patterns[PATTERNS_TOTAL]={
 "########",
 "#..##..#",
@@ -145,9 +145,9 @@ char *spf_encoding_patterns[PATTERNS_TOTAL]={
 "##.###.#",
 "#..#...#",
 "###...##",
+"........",
 "####...#",
 "#.#####.",
-"........",
 "####.###",
 "##.#####",
 "##..#..#",

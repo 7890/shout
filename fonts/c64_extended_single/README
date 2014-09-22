@@ -6,3 +6,10 @@ cd fonts
 cat c64_extended_single/_* | gzip -9 > c64_extended.spf.gz
 
 the new c64_extended.spf.gz will be used by make
+
+c64_extended.spf is based on c64.bdf (8x8 pixel font)
+http://beej.us/c64bdf/c64bdf/c64.bdf
+see http://beej.us/c64bdf/ by Beej, beej@beej.us
+
+the bdf file was converted with bdf2spf
+thanks to robin@gareus.org for providing a starting point for the bdf reader

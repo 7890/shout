@@ -45,7 +45,7 @@ ARCH ?= "i386"
 #You can inhibit parallelism in a particular makefile with the .NOTPARALLEL pseudo-target
 .NOTPARALLEL:
 
-all: cshout ushout
+all: cshout ushout bdf2spf
 
 default: all
 
@@ -125,6 +125,9 @@ ushout: $(BUILD)/u/gen_ushout $(BUILD)/utf8.o $(BUILD)/u/ufont.o $(BUILD)/u/usho
 	$(CC) -o $(BUILD)/u/ushout $(BUILD)/u/ushout.o $(BUILD)/utf8.o $(BUILD)/u/ufont.o $(CFLAGS)
 	$(BUILD)/u/ushout --fontinfo
 	$(BUILD)/u/ushout --eval 'congrat\/s!'
+
+bdf2spf: $(SRC)/bdf2spf.c
+	$(CC) -o $(BUILD)/bdf2spf $(SRC)/bdf2spf.c $(CFLAGS)	
 
 $(DOC)/$(PROGNAME).1.gz: $(DOC)/$(PROGNAME).man.asciidoc
 	a2x --doctype manpage --format manpage $(DOC)/$(PROGNAME).man.asciidoc

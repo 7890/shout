@@ -48,8 +48,18 @@ default: compile
 
 compile: cshout ushout
 
-gen_cshout: 
-	#$(SRC)/encoding_patterns.h.header src/spfenc.c src/font.c src/font.h $(FONTS)"/c64_extended.spf.gz" $(FONTS)"/nl_tab_unknown_8x8.spf"
+$(SRC)/encoding_patterns.h.header:
+$(SRC)/spfenc.c:
+$(SRC)/font.c:
+$(SRC)/font.h:
+$(FONTS)/c64_extended.spf.gz:
+$(FONTS)/nl_tab_unknown_8x8.spf:
+
+$(FONTS)/unifont-7.0.03.spf.gz:
+$(FONTS)/nl_tab_unknown_8x16.spf:
+
+$(BUILD)/c/gen_cshout: $(SRC)/encoding_patterns.h.header $(SRC)/spfenc.c $(SRC)/font.c $(SRC)/font.h $(FONTS)/c64_extended.spf.gz $(FONTS)/nl_tab_unknown_8x8.spf
+
 	mkdir -p $(BUILD)/c
 
 	@echo "start build c64_extended font =================="
@@ -59,13 +69,18 @@ gen_cshout:
 	--source $(SRC) \
 	--build $(BUILD)/c \
 	--out cshout \
-	--spfgz $(FONTS)"/c64_extended.spf.gz" \
+	--spfgz $(FONTS)/c64_extended.spf.gz \
 	--lpc 8 \
-	--ammend $(FONTS)"/nl_tab_unknown_8x8.spf" \
+	--ammend $(FONTS)/nl_tab_unknown_8x8.spf \
 	--name "c64 extended" \
 	--desc "spf derived from file c64font.bdf.tgz, `date --iso-8601`"
 
-gen_ushout:
+	touch $(BUILD)/c/gen_cshout
+
+	@echo "done! =========================================="
+
+$(BUILD)/u/gen_ushout: $(SRC)/encoding_patterns.h.header $(SRC)/spfenc.c $(SRC)/font.c $(SRC)/font.h $(FONTS)/unifont-7.0.03.spf.gz $(FONTS)/nl_tab_unknown_8x16.spf
+
 	mkdir -p $(BUILD)/u
 
 	@echo "start build unifont font ======================="
@@ -75,44 +90,48 @@ gen_ushout:
 	--source $(SRC) \
 	--build $(BUILD)/u \
 	--out ushout \
-	--spfgz $(FONTS)"/unifont-7.0.03.spf.gz" \
+	--spfgz $(FONTS)/unifont-7.0.03.spf.gz \
 	--lpc 16 \
-	--ammend $(FONTS)"/nl_tab_unknown_8x16.spf" \
+	--ammend $(FONTS)/nl_tab_unknown_8x16.spf \
 	--name "unifont 7" \
 	--desc "spf derived from file unifont-7.0.03.bdf.tgz, `date --iso-8601`"
 
+	touch $(BUILD)/u/gen_ushout
+
 	@echo "done! =========================================="
 
-utf8.o: $(SRC)/utf8.c
+$(BUILD)/utf8.o: $(SRC)/utf8.c
 	$(CC) -c -o $(BUILD)/utf8.o $(SRC)/utf8.c $(CFLAGS)
 
-cshout.o: $(SRC)/shout.c
+$(BUILD)/c/cshout.o: $(SRC)/shout.c
 	$(CC) -c -o $(BUILD)/c/cshout.o $(SRC)/shout.c $(CFLAGS)
 
-cfont.o: $(SRC)/font.c
+$(BUILD)/c/cfont.o: $(SRC)/font.c
 	$(CC) -c -o $(BUILD)/c/cfont.o $(SRC)/font.c $(CFLAGS) -I $(BUILD)/c
 
-cshout: gen_cshout utf8.o cfont.o cshout.o
+cshout: $(BUILD)/c/gen_cshout $(BUILD)/utf8.o $(BUILD)/c/cfont.o $(BUILD)/c/cshout.o
 	$(CC) -o $(BUILD)/c/cshout $(BUILD)/c/cshout.o $(BUILD)/utf8.o $(BUILD)/c/cfont.o $(CFLAGS)
 	$(BUILD)/c/cshout --fontinfo
 	$(BUILD)/c/cshout --eval 'congrat\/s!'
 
-ushout.o: $(SRC)/shout.c
+$(BUILD)/u/ushout.o: $(SRC)/shout.c
 	$(CC) -c -o $(BUILD)/u/ushout.o $(SRC)/shout.c $(CFLAGS)
 
-ufont.o: $(SRC)/font.c
+$(BUILD)/u/ufont.o: $(SRC)/font.c
 	$(CC) -c -o $(BUILD)/u/ufont.o $(SRC)/font.c $(CFLAGS) -I $(BUILD)/u
 
-ushout: gen_ushout utf8.o ufont.o ushout.o
+ushout: $(BUILD)/u/gen_ushout $(BUILD)/utf8.o $(BUILD)/u/ufont.o $(BUILD)/u/ushout.o
 	$(CC) -o $(BUILD)/u/ushout $(BUILD)/u/ushout.o $(BUILD)/utf8.o $(BUILD)/u/ufont.o $(CFLAGS)
 	$(BUILD)/u/ushout --fontinfo
 	$(BUILD)/u/ushout --eval 'congrat\/s!'
 
-manpage: $(DOC)/$(PROGNAME).man.asciidoc
+$(DOC)/$(PROGNAME).1.gz: $(DOC)/$(PROGNAME).man.asciidoc
 	a2x --doctype manpage --format manpage $(DOC)/$(PROGNAME).man.asciidoc
 	gzip -9 -f $(DOC)/$(PROGNAME).1
 
-install:
+manpage: $(DOC)/$(PROGNAME).1.gz
+
+install: cshout ushout
 	mkdir -p $(DESTDIR)$(INSTALLDIR)/
 	mkdir -p $(DESTDIR)$(MANDIR)/
 
@@ -140,7 +159,7 @@ clean:
 	rm -rf doc-pak
 	rm -f description-pak
 
-prepare_checkinstall:
+prepare_checkinstall: manpage
 	mkdir -p doc-pak
 	chmod 0755 doc-pak
 	cp README.md doc-pak
@@ -161,7 +180,7 @@ prepare_checkinstall:
 	@echo "next: sudo make deb ARCH=i386|amd64|armhf"
 
 #set ARCH to i386, amd64 or armhf
-deb: 
+deb: prepare_checkinstall cshout ushout
 	rm -f doc-pak/changelog.Debian.gz
 	cp $(DOC)/changelog.Debian.$(ARCH) doc-pak/changelog.Debian
 	gzip -9 doc-pak/changelog.Debian	
@@ -173,7 +192,7 @@ deb:
 	@echo "done."
 	@echo "next: make deb_dist ARCH=i386|amd64|armhf"
 
-deb_dist:
+deb_dist: deb
 	@echo "doing lintian check of deb, installation test, creating report..."
 
 	mkdir -p $(DIST)
@@ -190,4 +209,4 @@ deb_dist:
 	@echo ""
 	@echo "if package is ok to release, move to $(DIST) and add to repository"
 
-.PHONY: clean all install uninstall manpage prepare_checkinstall deb deb_dist
+.PHONY: clean all install uninstall gen_cshout gen_ushout prepare_checkinstall deb deb_dist

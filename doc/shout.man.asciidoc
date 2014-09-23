@@ -34,7 +34,7 @@ one line, the output will be wrapped. The terminal width used to calculate
 where wrapping takes place can be set manually. 
 Wrapping can also be turned off completely.
 
-shout version is 0.97
+shout version is 0.98
 
 OPTIONS
 -------
@@ -74,9 +74,13 @@ OPTIONS
 *--plain*::
 	print the characters in plain spf mode
 *--single*::
-	output one character per line
+	output one character per line (can't be combined with --fill and --indent)
+*--header*::
+	add //<codepoint dec> header per character. (works only in combination with --single)
 *--ppm*::
 	output as (colored) ppm image skeleton with placeholders for \_WIDTH_ \_HEIGHT_ (also see: ishout wrapper, --img)
+*--indent <x>*::
+	indent <x> pixels on every line (extend at left side)
 *--left <x>*::
 	trim (extend or cut) at left edge of a character
 

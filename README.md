@@ -43,13 +43,17 @@ figlet output is shown best with an image:
 
 ![shout / figlet comparison](doc/shout_vs_figlet.png?raw=true)
 
-Please note, shout has just one built-in font at this time.
+shout is a wrapper to the binaries cshout (using c64_extended font) 
+and ushout (using unifont 7).
+By default, the c64_extended font is used. --uni will set to use unifont 7.
 
 man page
 --------
 
 ```
 SHOUT(1)                                                              SHOUT(1)
+
+
 
 NAME
        shout - print large pixel fonts in terminal
@@ -79,7 +83,7 @@ DESCRIPTION
        calculate where wrapping takes place can be set manually. Wrapping can
        also be turned off completely.
 
-       shout version is 0.97
+       shout version is 0.98
 
 OPTIONS
        --eval
@@ -135,11 +139,19 @@ OPTIONS
            print the characters in plain spf mode
 
        --single
-           output one character per line
+           output one character per line (can’t be combined with --fill and
+           --indent)
+
+       --header
+           add //<codepoint dec> header per character. (works only in
+           combination with --single)
 
        --ppm
            output as (colored) ppm image skeleton with placeholders for
            _WIDTH_ _HEIGHT_ (also see: ishout wrapper, --img)
+
+       --indent <x>
+           indent <x> pixels on every line (extend at left side)
 
        --left <x>
            trim (extend or cut) at left edge of a character
@@ -324,8 +336,8 @@ EXAMPLES
        Eamples for --img (output PNG image data to stdout)
 
        display large character '8' with transparent background
-           $ shout --img --autowidth --resize 400x --trans black --negate
-           "8" | display -
+           $ shout --img --autowidth --resize 400x --trans black --negate "8"
+           | display -
 
        display two large lines, with fixed (virtual) terminal width with
        unifont 7
@@ -354,7 +366,6 @@ COPYING
 
 
 
-                                  09/21/2014                          SHOUT(1)
+                                  09/23/2014                          SHOUT(1)
 ```
-
 PAGER="cat" man shout

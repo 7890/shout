@@ -88,7 +88,7 @@ progname=ishout
 debug=0
 
 #http://stackoverflow.com/questions/9271381/how-can-i-parse-long-form-arguments-in-shell
-params="$(getopt -o h -l help,img,uni,negate,trans:,border:,bordercolor:,antialias,resize:,autowidth,shownl,showtab,hideuk,showall,eval,nowrap,relax8,single,left:,top:,right:,bottom:,wabs:,habs:,tabsize:,termwidth:,deffg:,defbg: --name "$(basename "$progname")" -- "$@")"
+params="$(getopt -o h -l help,img,uni,negate,trans:,border:,bordercolor:,antialias,resize:,autowidth,shownl,showtab,hideuk,showall,eval,nowrap,relax8,single,header,indent:,left:,top:,right:,bottom:,wabs:,habs:,tabsize:,termwidth:,deffg:,defbg: --name "$(basename "$progname")" -- "$@")"
 
 if [ $? -ne 0 ]
 then
@@ -215,6 +215,17 @@ do
 		shift
 		;;
 
+	--header)
+		header_="--header"
+		shift
+		;;
+
+	--indent)
+		indent_="--indent"
+		indent_val=("${2-}")
+		shift 2
+		;;
+
 	--left)
 		left_="--left"
 		left_val=("${2-}")
@@ -302,6 +313,8 @@ then
 	echo "nowrap: $nowrap_" >&2
 	echo "relax8: $relax8_" >&2
 	echo "single: $single_" >&2
+	echo "header: $header_" >&2
+	echo "indent: $indent_ $indent_val" >&2
 	echo "left: $left_ $left_val" >&2
 	echo "top: $top_ $top_val" >&2
 	echo "right: $right_ $right_val" >&2
@@ -338,6 +351,8 @@ then
 	$nowrap_ \
 	$relax8_ \
 	$single_ \
+	$header_ \
+	$indent_ $indent_val \
 	$left_ $left_val \
 	$top_ $top_val \
 	$right_ $right_val \
@@ -363,6 +378,8 @@ else
 	$nowrap_ \
 	$relax8_ \
 	$single_ \
+	$header_ \
+	$indent_ $indent_val \
 	$left_ $left_val \
 	$top_ $top_val \
 	$right_ $right_val \

@@ -249,7 +249,7 @@ OUTPUT COLOR STYLES
        \/: invert the foreground/background color scheme
 
 INPUT ESCAPING
-       ono escaping (apos)
+       no escaping (apos)
            $ shout \Rx\nB
 
        one level of escaping (double quotes)
@@ -325,7 +325,7 @@ EXAMPLES
 
        display large character '8' with transparent background
            $ shout --img --autowidth --resize 400x --trans black --negate
-           --eval "8" | display -
+           "8" | display -
 
        display two large lines, with fixed (virtual) terminal width with
        unifont 7

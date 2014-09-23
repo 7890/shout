@@ -1,0 +1,81 @@
+shout
+748K	shout_140923_0-98_amd64.deb
+Tue Sep 23 19:13:14 CEST 2014
+********************
+
+$ md5sum shout_140923_0-98_amd64.deb
+acec83b9dacc34bee1d152c2a26b9d2f  shout_140923_0-98_amd64.deb
+
+$ lintian shout_140923_0-98_amd64.deb
+W: shout: control-file-is-empty conffiles
+W: shout: binary-without-manpage usr/bin/cshout
+W: shout: binary-without-manpage usr/bin/ishout
+W: shout: binary-without-manpage usr/bin/ushout
+
+$ sudo apt-get remove shout
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following packages will be REMOVED:
+  shout
+0 upgraded, 0 newly installed, 1 to remove and 125 not upgraded.
+After this operation, 8,548 kB disk space will be freed.
+(Reading database ... 190841 files and directories currently installed.)
+Removing shout (0-98) ...
+Processing triggers for man-db (2.6.7.1-1) ...
+
+$ sudo dpkg -i shout_140923_0-98_amd64.deb
+Selecting previously unselected package shout.
+(Reading database ... 190830 files and directories currently installed.)
+Preparing to unpack shout_140923_0-98_amd64.deb ...
+Unpacking shout (0-98) ...
+Setting up shout (0-98) ...
+Processing triggers for man-db (2.6.7.1-1) ...
+
+$ dpkg -L shout
+/.
+/usr
+/usr/bin
+/usr/bin/ushout
+/usr/bin/shout
+/usr/bin/cshout
+/usr/bin/ishout
+/usr/share
+/usr/share/doc
+/usr/share/doc/shout
+/usr/share/doc/shout/README.md
+/usr/share/doc/shout/copyright
+/usr/share/doc/shout/doc
+/usr/share/doc/shout/doc/shout.man.asciidoc
+/usr/share/doc/shout/changelog.Debian.gz
+/usr/share/man
+/usr/share/man/man1
+/usr/share/man/man1/shout.1.gz
+
+$ LD_LIBRARY_PATH=/usr/lib ldd /usr/bin/cshout
+	linux-vdso.so.1 =>  (0x00007fffc1dfe000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00002ae6d7713000)
+	/lib64/ld-linux-x86-64.so.2 (0x00002ae6d74ee000)
+
+$ LD_LIBRARY_PATH=/usr/lib /usr/bin/cshout --version
+0.98
+
+$ LD_LIBRARY_PATH=/usr/lib ldd /usr/bin/ushout
+	linux-vdso.so.1 =>  (0x00007fff4ddfe000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00002aabf56e7000)
+	/lib64/ld-linux-x86-64.so.2 (0x00002aabf54c2000)
+
+$ LD_LIBRARY_PATH=/usr/lib /usr/bin/ushout --version
+0.98
+
+$ LD_LIBRARY_PATH=/usr/lib /usr/bin/shout --version
+0.98
+
+[40m [0m[47m [0m[47m [0m[47m [0m[47m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m
+[40m [0m[47m [0m[47m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[47m [0m[40m [0m[40m [0m[40m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m
+[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[47m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m
+[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[47m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m
+[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[47m [0m[40m [0m[40m [0m[47m [0m[40m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m
+[40m [0m[47m [0m[47m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m
+[40m [0m[47m [0m[47m [0m[47m [0m[47m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m[47m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m
+[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[40m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m[47m [0m

@@ -196,10 +196,10 @@ deb: prepare_checkinstall cshout ushout
 	@echo "done."
 	@echo "next: make deb_dist ARCH=i386|amd64|armhf"
 
-deb_dist: deb
+deb_dist: 
 	@echo "doing lintian check of deb, installation test, creating report..."
 
-	mkdir -p $(DIST)
+	test -s $(PROGNAME)_$(VERSION)-$(RELEASE)_$(ARCH).deb || { echo ".deb file not found. first do: make deb (ARCH=...)"; exit 1; }
 	mv $(PROGNAME)_$(VERSION)-$(RELEASE)_$(ARCH).deb  $(PROGNAME)_$(RELEASE_DATE)_$(VERSION)-$(RELEASE)_$(ARCH).deb
 	$(DIST)/create_report.sh $(PROGNAME)_$(RELEASE_DATE)_$(VERSION)-$(RELEASE)_$(ARCH).deb > $(PROGNAME)_$(RELEASE_DATE)_$(VERSION)-$(RELEASE)_$(ARCH).deb.txt 2>&1
 

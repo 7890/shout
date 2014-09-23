@@ -176,7 +176,7 @@ The following escape sequences are interpreted for color styling
 INPUT ESCAPING
 --------------
 
-ono escaping (apos)::
+no escaping (apos)::
 	$ shout '\Rx\nB'
 one level of escaping (double quotes)::
 	$ shout "\\Rx\\nB"
@@ -236,7 +236,7 @@ information about font (--uni in that case)::
 Eamples for --img (output PNG image data to stdout)
 
 display large character \'8' with transparent background::
-	$ shout --img --autowidth --resize 400x --trans black --negate --eval "8" | display -
+	$ shout --img --autowidth --resize 400x --trans black --negate "8" | display -
 display two large lines, with fixed (virtual) terminal width with unifont 7::
 	$ shout --img --uni --left 5 --termwidth 50 --resize 800x --eval "DIS\/PLAY" | display -
 display text roughly like it would appear in a terminal::

@@ -131,7 +131,6 @@ int main(int argc, char **argv)
 	//set default option values
 	setup();
 
-/////////////
 	LINES_PER_CHAR=get_lines_per_char();
 
 	//check if system uses UTF-8
@@ -159,40 +158,32 @@ int main(int argc, char **argv)
 	//http://www.gnu.org/software/libc/manual/html_node/Using-Getopt.html
 	static struct option long_options[] =
 	{
-		{"help",        no_argument,    0, 'a'}, //
-		{"info",        no_argument,    0, 'b'}, //
-		{"version",     no_argument,    0, 'c'}, //
-
+		{"help",        no_argument,    0, 'a'},
+		{"info",        no_argument,    0, 'b'},
+		{"version",     no_argument,    0, 'c'},
 		{"fontinfo",    no_argument,    0, 'd'},
 		{"mapping",     no_argument,    0, 'e'},
-
-		{"clearnl",     no_argument,    &options.clear_on_newline, 1}, //
-
-		{"shownl",      no_argument,    &options.display_newline, 1}, //
-		{"showtab",     no_argument,    &options.display_tab, 1}, //
-		{"hideuk",      no_argument,    &options.hide_unknown_sequences, 1}, //
-		{"showall",     no_argument,    &options.display_all, 1}, //
-
-//////////////////
-		{"eval",        no_argument,    &options.enable_esc_seq, 1}, //
-		{"fill",        no_argument,    &options.fill_to_end_of_line, 1}, //
-		{"nowrap",      no_argument,    &options.no_wrap, 1}, //
+		{"clearnl",     no_argument,    &options.clear_on_newline, 1},
+		{"shownl",      no_argument,    &options.display_newline, 1},
+		{"showtab",     no_argument,    &options.display_tab, 1},
+		{"hideuk",      no_argument,    &options.hide_unknown_sequences, 1},
+		{"showall",     no_argument,    &options.display_all, 1},
+		{"eval",        no_argument,    &options.enable_esc_seq, 1},
+		{"fill",        no_argument,    &options.fill_to_end_of_line, 1},
+		{"nowrap",      no_argument,    &options.no_wrap, 1},
 		{"relax8",      no_argument,    &options.relax_utf8, 1},
 		{"debug",       no_argument,    &options.debug, 1},
 		{"single",      no_argument,    &options.separate_chars, 1},
 		{"plain",       no_argument,    &output.style, 1},
 		{"ppm",         no_argument,    &output.style, 2},
-		{"header",      no_argument,    &output.print_header, 1}, //
+		{"header",      no_argument,    &output.print_header, 1},
+
 		{"left",        required_argument,    0, 'n'},
 		{"top",         required_argument,    0, 'o'},
-
 		{"deffg",       required_argument,    0, 'p'},
 		{"defbg",       required_argument,    0, 'q'},
-
-
-//dummy, no action (will be processed by wrapper)
+		//dummy, no action (will be processed by wrapper)
 		{"uni",         no_argument,    NULL, 1},
-
 		{"right",       required_argument,    0, 't'},
 		{"bottom",      required_argument,    0, 'u'},
 		{"wabs",        required_argument,    0, 'v'},
@@ -200,17 +191,9 @@ int main(int argc, char **argv)
 		{"tabsize",     required_argument,    0, 'x'},
 		{"termwidth",   required_argument,    0, 'y'},
 		{"autowidth",   no_argument,    &options.auto_width, 1},
-
 		{"spf",         no_argument,    &options.print_spf, 1},
-
-
 		{0, 0, 0, 0}
 	};
-
-/*
-option combinations
-single + fill strange
-*/
 
 	if (argc - optind < 1)
 	{
@@ -268,13 +251,9 @@ single + fill strange
 			case 'p':
 				options.default_foreground=strdup(optarg);
 				break;
-
 			case 'q':
 				options.default_background=strdup(optarg);
 				break;
-
-
-
 			case 't':
 				//right: shortcut for:
 				//--wmode 2 --w n
@@ -873,7 +852,7 @@ int process()
 						int w=0;
 						for(w=0;w<diff;w++)
 						{
-/////////////////////////////////////////////////
+							/////////
 							//bg_char
 							print_pixels("#");
 						}
@@ -924,8 +903,8 @@ int process()
 				int w=0;
 				for(w=0;w<diff;w++)
 				{
-////////////////////////////////////////
-					/////////bg_char
+					///////
+					//bg_char
 					print_pixels("#");
 				}
 			}
@@ -939,7 +918,6 @@ int process()
 			}
 
 		}//end for every char line
-
 
 		if(wrapping==1 && options.no_wrap==0)
 		{
@@ -1080,7 +1058,6 @@ void print_help()
 	printf("then enter the code in hex, i.e. ctrl+shift+u ab12 (enter)\n");
 
 	printf("For more help see the manpage.\n\n");
-
 /*
 	{"header",      no_argument,    &output.print_header, 1}, //
 	--img

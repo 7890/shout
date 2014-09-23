@@ -49,7 +49,7 @@ for a in {0..31}; do echo "$a"; b="`printf \"%x\" $a`"; shout --uni --showall "`
 //-> trailing \n of argv string argument are lost. this seems to be a limitation of getopt (?)
 */
 
-static double version=0.97;
+static double version=0.98;
 
 #define black 40
 #define lgray 47
@@ -84,14 +84,11 @@ struct Options
 {
 	//switches 0: off 1: on
 	int force_even_if_not_utf8;
-
 	int clear_on_newline;
-
 	//ascii control chars
 	int display_newline;
 	int display_tab;
 	int hide_unknown_sequences;
-
 	int display_all;
 	int no_wrap;
 	int debug;
@@ -102,8 +99,8 @@ struct Options
 	int terminal_width;
 	int auto_width;
 	int default_terminal_width;
+	int indent;
 	int fill_to_end_of_line;
-
 	int print_spf;
 
 	char *default_foreground;
@@ -177,13 +174,13 @@ int main(int argc, char **argv)
 		{"plain",       no_argument,    &output.style, 1},
 		{"ppm",         no_argument,    &output.style, 2},
 		{"header",      no_argument,    &output.print_header, 1},
-
 		{"left",        required_argument,    0, 'n'},
 		{"top",         required_argument,    0, 'o'},
 		{"deffg",       required_argument,    0, 'p'},
 		{"defbg",       required_argument,    0, 'q'},
 		//dummy, no action (will be processed by wrapper)
 		{"uni",         no_argument,    NULL, 1},
+		{"indent",      required_argument,    0, 'r'},
 		{"right",       required_argument,    0, 't'},
 		{"bottom",      required_argument,    0, 'u'},
 		{"wabs",        required_argument,    0, 'v'},
@@ -247,12 +244,14 @@ int main(int argc, char **argv)
 			case 'o':
 				crop.y=atoi(optarg)*-1;
 				break;
-
 			case 'p':
 				options.default_foreground=strdup(optarg);
 				break;
 			case 'q':
 				options.default_background=strdup(optarg);
+				break;
+			case 'r':
+				options.indent=atoi(optarg);
 				break;
 			case 't':
 				//right: shortcut for:
@@ -292,9 +291,17 @@ int main(int argc, char **argv)
 	//print font and quit
 	if(options.print_spf==1)
 	{
+		//implicit plain style
 		output.style=1;
 		print_spf();
 		return 0;
+	}
+
+	if(options.separate_chars==1)
+	{
+		//single chars don't support fill or indent
+		options.fill_to_end_of_line=0;
+		options.indent=0;
 	}
 
 	//remaining non optional parameter: text string to display
@@ -703,6 +710,8 @@ int process()
 
 	u_int32_t ucp=0;
 
+	int char_parts_printed_so_far=0;
+
 	while(finished==0)
 	{
 		//for every spf char line
@@ -722,6 +731,29 @@ int process()
 			//for every character
 			while(byte_ahead<bytes)
 			{
+				//left indent
+				if(options.indent>0 && current_line_length==0 )
+				{
+					//fill left of term with bg
+					int w=0;
+					for(w=0;w<options.indent;w++)
+					{
+						/////////
+						//bg_char
+						print_pixels("#");
+					}
+					current_line_length+=options.indent;
+					//break;
+				}
+
+				//special situation: want to wrap, but no character was printed yet
+				//this would lead to infinite wrapping
+				if(byte_ahead==0 && wrapping==1 && char_parts_printed_so_far==0)
+				{
+					fprintf(stderr,"/!\\ terminal width too small to display input (too large indent?)\n");
+					return -1;
+				}
+
 				//assume char is printable
 				non_printable=0;
 
@@ -836,11 +868,18 @@ int process()
 				int cropped_char_height=get_char_height_cropped();
 				//printf(" cropped %d  ",cropped_char_height);
 
-////////////////////////////////////////
 				LINES_PER_CHAR=cropped_char_height;
 
 				//get character width and check if it can be placed to the current line
 				int char_width=get_char_width_cropped(ucp);
+
+				//special situation: char wider than terminal
+				//-> will never print
+				if(char_width>columns)
+				{
+					fprintf(stderr,"/!\\ terminal width is to small for character %d\n",ucp);
+					continue;
+				}
 
 				//no more space on line but string not fully displayed -> wrapping needed
 				if((current_line_length+char_width) > columns)
@@ -869,11 +908,13 @@ int process()
 					if(options.separate_chars==0)
 					{
 						print_char_line_cropped(char_part_line);
+						char_parts_printed_so_far++;
 					}
 					else if (options.separate_chars==1 && char_part_line==0)
 					{
 						//print char at start of line
 						print_char_cropped();
+						char_parts_printed_so_far++;
 
 						if(options.debug==1)
 						{
@@ -991,9 +1032,13 @@ void print_help()
 	printf("               if there is a gap\n");
 	printf(" --plain       print the characters in plain spf mode\n");
 	printf(" --single      output one character per line\n");
+	printf("               (can't be combined with --fill and --indent)\n");
+	printf(" --header      add //<codepoint dec> header per character\n");
+	printf("               (works only in combination with --single)\n");
 	printf(" --ppm         output as (colored) ppm image skeleton\n");
 	printf("               with placeholders for _WIDTH_ _HEIGHT_\n");
 	printf("               (also see: ishout wrapper, --img)\n");
+	printf(" --indent <x>  indent <x> pixels on every line (extend at left side)\n");
 	printf(" --left <x>    trim (extend or cut) at left edge of a character\n");
 	printf("                 x>0: extend   x<0: cut\n");
 	printf(" --right <x>   trim (extend or cut) at right edge of a character\n");
@@ -1059,7 +1104,6 @@ void print_help()
 
 	printf("For more help see the manpage.\n\n");
 /*
-	{"header",      no_argument,    &output.print_header, 1}, //
 	--img
 */
 }//end help
@@ -1082,11 +1126,8 @@ void print_version()
 void setup()
 {
 	//default settings
-
 	options.force_even_if_not_utf8=0;
-
 	options.clear_on_newline=0;
-
 	options.display_newline=0;
 	options.display_tab=0;
 	options.hide_unknown_sequences=0;
@@ -1101,7 +1142,7 @@ void setup()
 	options.default_terminal_width=80;
 	options.auto_width=0;
 	options.fill_to_end_of_line=0;
-
+	options.indent=0;
 	options.print_spf=0;
 
 	options.default_foreground="";

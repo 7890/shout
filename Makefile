@@ -22,8 +22,8 @@ SRC_URL ?= "https://github.com/7890/shout"
 MAINTAINER ?= "Thomas Brand \<tom@trellis.ch\>"
 LICENSE ?= "GPL2"
 VERSION ?= 0
-RELEASE ?= 97
-RELEASE_DATE ?= 140921
+RELEASE ?= 98
+RELEASE_DATE ?= 140923
 #REQUIRES ?= "libc6 (>= 2.14)"
 REQUIRES ?= "libc6"
 PKG_GROUP ?= "text"

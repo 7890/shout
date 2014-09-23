@@ -1,3 +1,11 @@
+shout (0.98.0) amd64; urgency=low
+
+  * add option --indent
+  * handle edge cases when terminal width is too small for character, indent
+  * show option --header (works in combination with --single)
+
+ -- Thomas Brand <tom@trellis.ch>  Tue, 23 Sep 2014 16:23:19 +0200
+
 shout (0.97.0) amd64; urgency=low
 
   * Almost complete rewrite with a lot of new features

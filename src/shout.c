@@ -691,6 +691,13 @@ int process()
 {
 	eval_terminal_width();
 
+//special situation: indent larger than term width
+	if(columns<=options.indent)
+	{
+		fprintf(stderr,"/!\\ terminal width too small to display input (too large indent?)\n");
+		return -1;
+	}
+
 	size_t bytes=strlen(inbuff);
 
 	int inchars=u8_strlen(inbuff);

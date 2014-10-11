@@ -49,7 +49,7 @@ for a in {0..31}; do echo "$a"; b="`printf \"%x\" $a`"; shout --uni --showall "`
 //-> trailing \n of argv string argument are lost. this seems to be a limitation of getopt (?)
 */
 
-static double version=0.98;
+static double version=0.99;
 
 #define black 40
 #define lgray 47
@@ -83,7 +83,6 @@ int first_line=1;
 struct Options
 {
 	//switches 0: off 1: on
-	int force_even_if_not_utf8;
 	int clear_on_newline;
 	//ascii control chars
 	int display_newline;
@@ -145,7 +144,7 @@ int main(int argc, char **argv)
 
 	int is_utf8=u8_is_locale_utf8(locstr);
 
-	if(!is_utf8 && options.force_even_if_not_utf8==0)
+	if(!is_utf8 && options.relax_utf8==0)
 	{
 		fprintf(stderr,"/!\\ ushout only works with UTF-8, use --relax8 to override.\n");
 		return 1;
@@ -1133,7 +1132,6 @@ void print_version()
 void setup()
 {
 	//default settings
-	options.force_even_if_not_utf8=0;
 	options.clear_on_newline=0;
 	options.display_newline=0;
 	options.display_tab=0;

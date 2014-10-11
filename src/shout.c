@@ -142,14 +142,6 @@ int main(int argc, char **argv)
 		fprintf(stderr,"encoding: '%s'\n", encoding);
 	}
 
-	int is_utf8=u8_is_locale_utf8(locstr);
-
-	if(!is_utf8 && options.relax_utf8==0)
-	{
-		fprintf(stderr,"/!\\ ushout only works with UTF-8, use --relax8 to override.\n");
-		return 1;
-	}
-
 	//command line options parsing
 	//http://www.gnu.org/software/libc/manual/html_node/Using-Getopt.html
 	static struct option long_options[] =
@@ -286,6 +278,15 @@ int main(int argc, char **argv)
 				break;
 		 } //end switch op
 	}//end while(1)
+
+
+	int is_utf8=u8_is_locale_utf8(locstr);
+
+	if(!is_utf8 && options.relax_utf8==0)
+	{
+		fprintf(stderr,"/!\\ ushout only works with UTF-8, use --relax8 to override.\n");
+		return 1;
+	}
 
 	//print font and quit
 	if(options.print_spf==1)

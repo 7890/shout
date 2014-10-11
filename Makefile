@@ -112,8 +112,8 @@ $(BUILD)/c/cfont.o: $(SRC)/font.c
 
 cshout: $(BUILD)/c/gen_cshout $(BUILD)/utf8.o $(BUILD)/c/cfont.o $(BUILD)/c/cshout.o
 	$(CC) -o $(BUILD)/c/cshout $(BUILD)/c/cshout.o $(BUILD)/utf8.o $(BUILD)/c/cfont.o $(CFLAGS)
-	$(BUILD)/c/cshout --fontinfo
-	$(BUILD)/c/cshout --eval 'congrat\/s!'
+	$(BUILD)/c/cshout --relax8 --fontinfo
+	$(BUILD)/c/cshout --relax8 --eval 'congrat\/s!'
 
 $(BUILD)/u/ushout.o: $(SRC)/shout.c
 	$(CC) -c -o $(BUILD)/u/ushout.o $(SRC)/shout.c $(CFLAGS)
@@ -123,8 +123,8 @@ $(BUILD)/u/ufont.o: $(SRC)/font.c
 
 ushout: $(BUILD)/u/gen_ushout $(BUILD)/utf8.o $(BUILD)/u/ufont.o $(BUILD)/u/ushout.o
 	$(CC) -o $(BUILD)/u/ushout $(BUILD)/u/ushout.o $(BUILD)/utf8.o $(BUILD)/u/ufont.o $(CFLAGS)
-	$(BUILD)/u/ushout --fontinfo
-	$(BUILD)/u/ushout --eval 'congrat\/s!'
+	$(BUILD)/u/ushout --relax8 --fontinfo
+	$(BUILD)/u/ushout --relax8 --eval 'congrat\/s!'
 
 bdf2spf: $(SRC)/bdf2spf.c
 	$(CC) -o $(BUILD)/bdf2spf $(SRC)/bdf2spf.c $(CFLAGS)	

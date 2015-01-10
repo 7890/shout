@@ -181,7 +181,7 @@ INPUT ESCAPING
 --------------
 
 no escaping (apos)::
-	$ shout '\Rx\nB'
+	$ shout \'\Rx\nB'
 one level of escaping (double quotes)::
 	$ shout "\\Rx\\nB"
 one level (eval, apos)::
@@ -193,7 +193,7 @@ style red, newline::
 style red, newline::
 	$ shout --eval \'\Rx\nB'
 display apos between double quotes::
-	$ shout --eval "a'b"
+	$ shout --eval "a\'b"
 display apos between apos::
 	$ shout --eval \'a\'"\'"\'b'
 display double quotes between apos::
@@ -215,23 +215,23 @@ EXAMPLES
 simple shout::
 	$ shout 1
 using command output::
-	$ shout "`hostname`"
+	$ shout "\`hostname`"
 evaluate and show tabs, newlines, unknown::
 	$ shout --eval --showall "123\n\tabc"
 setting background red and foreground green::
-	$ shout "\_\R\G1"
+	$ shout --eval "\_\R\G1"
 the same inverted::
-	$ shout "\_\R\G\/1"
+	$ shout --eval "\_\R\G\/1"
 more coloring::
 	$ shout --eval "\/\R1\G2\B3\|1\/2\|3\_\R1\_\G\R2\_\B3"
 backslash::
 	$ shout \'\'
-special case input argument starting with --:
-	$ shout \'\--foo'
+special case input argument starting with --::
+	$ shout \'\\--foo'
 using stdin::
 	$ echo a | shout -
 don't wrap lines that do not fit::
-	$ cat /etc/*release* | shout --nowrap -
+	$ cat /etc/resolv.conf | shout --nowrap -
 output variation::
 	$ shout --plain --left 4 --fill "abc"
 information about font (--uni in that case)::

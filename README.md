@@ -191,7 +191,7 @@ OPTIONS
            print information about the font
 
        --mapping
-           print all index <→ codepoint relations in font
+           print all index <-> codepoint relations in font
 
        --spf
            print each character of font (plain, header)
@@ -262,7 +262,7 @@ OUTPUT COLOR STYLES
 
 INPUT ESCAPING
        no escaping (apos)
-           $ shout \Rx\nB
+           $ shout '\Rx\nB'
 
        one level of escaping (double quotes)
            $ shout "\\Rx\\nB"
@@ -274,13 +274,13 @@ INPUT ESCAPING
            $ shout --eval "\\\\Rx\\\\nB"
 
        style red, newline
-           $ shout --eval "\Rx\nB"
-
-       style red, newline
            $ shout --eval '\Rx\nB'
 
+       style red, newline
+           $ shout --eval "\Rx\nB"
+
        display apos between double quotes
-           $ shout --eval "a’b"
+           $ shout --eval "a'b"
 
        display apos between apos
            $ shout --eval 'a'"'"'b'
@@ -303,29 +303,31 @@ EXAMPLES
            $ shout 1
 
        using command output
-           $ shout "hostname"
+           $ shout "`hostname`"
 
        evaluate and show tabs, newlines, unknown
            $ shout --eval --showall "123\n\tabc"
 
        setting background red and foreground green
-           $ shout "\_\R\G1"
+           $ shout --eval "\_\R\G1"
 
        the same inverted
-           $ shout "\_\R\G\/1"
+           $ shout --eval "\_\R\G\/1"
 
        more coloring
            $ shout --eval "\/\R1\G2\B3\|1\/2\|3_\R1_\G\R2\_\B3"
 
        backslash
-           $ shout '\' special case input argument starting with --: $ shout
-           '--foo'
+           $ shout '\' 
+
+       special case input argument starting with --: 
+           $ shout '\--foo'
 
        using stdin
            $ echo a | shout -
 
        don’t wrap lines that do not fit
-           $ cat /etc/release | shout --nowrap -
+           $ cat /etc/resolv.conf | shout --nowrap -
 
        output variation
            $ shout --plain --left 4 --fill "abc"
@@ -336,17 +338,14 @@ EXAMPLES
        Eamples for --img (output PNG image data to stdout)
 
        display large character '8' with transparent background
-           $ shout --img --autowidth --resize 400x --trans black --negate "8"
-           | display -
+           $ shout --img --autowidth --resize 400x --trans black --negate "8" | display -
 
        display two large lines, with fixed (virtual) terminal width with
        unifont 7
-           $ shout --img --uni --left 5 --termwidth 50 --resize 800x --eval
-           "DIS\/PLAY" | display -
+           $ shout --img --uni --left 5 --termwidth 50 --resize 800x --eval "DIS\/PLAY" | display -
 
        display text roughly like it would appear in a terminal
-           $ cat /etc/resolv.conf | shout --img --uni --termwidth 800 - |
-           display -
+           $ cat /etc/resolv.conf | shout --img --uni --termwidth 800 - | display -
 
 BUGS
        Please report any bugs to https://github.com/7890/shout/issues

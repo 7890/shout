@@ -411,7 +411,7 @@ void fg()
 //void term_escape(char *line)
 void print_pixels(char *line)
 {
-	int i=0;
+	unsigned int i=0;
 	for(i=0;i<strlen(line);i++)
 	{
 		if(line[i]==SPF_BG)

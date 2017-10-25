@@ -88,7 +88,7 @@ int main (int argc, char **argv)
 	int offset=trim_top;
 	int line_no_processed=0;
 
-	while (fgets(tmp, sizeof(tmp), fin) > 0) 
+	while ( fgets(tmp, sizeof(tmp), fin) != NULL)
 	{
 		//code point decimal number
 		if (!strncmp(tmp, "ENCODING", 8)) 

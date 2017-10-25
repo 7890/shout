@@ -89,7 +89,7 @@ int main(int argc, char **argv)
 	{
 		{"help",        no_argument,        0, 'h'},
 		{"mode",       required_argument,      0, 'm'},
-		{"lpc",       required_argument,      0, 'l'},
+		{"lpc",        required_argument,      0, 'l'},
 		{"name",       required_argument,      0, 'n'},
 		{"desc",       required_argument,      0, 'd'},
 
@@ -180,8 +180,9 @@ int main(int argc, char **argv)
 
 	int char_width=0;
 
+	int abort=0;
 	char in;
-	while((in=getchar()) != EOF)
+	while((in=getchar()) != EOF && abort==0)
 	{
 		//printf("%c\n",in);
 
@@ -194,7 +195,6 @@ int main(int argc, char **argv)
 
 			if(print_header_delayed==1)// && output_mode==2)
 			{
-
 				if(output_mode==0 || output_mode==1)
 				{
 					printf("//%d %d %d\n",cp,char_counter,char_width);
@@ -217,7 +217,7 @@ int main(int argc, char **argv)
 
 			///
 			encodebuff();
-			clearbuff(); 
+			clearbuff();
 			buffpos=0;
 			line_in_char++;
 
@@ -241,10 +241,14 @@ int main(int argc, char **argv)
 			cp=read_char_cp();
 			print_header_delayed=1;
 		}
-		else
+		else if(buffpos<INBUFF_SIZE)
 		{
 			inbuff[buffpos]=in;
 			buffpos++;
+		}
+		else
+		{
+			abort=1;
 		}
 	}//end while((in=getchar()) != EOF)
 

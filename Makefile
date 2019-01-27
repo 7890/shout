@@ -1,6 +1,6 @@
 CC ?= gcc
-CFLAGS ?= -Wall
-#-std=c99
+CFLAGS ?= -Wall -Wextra  -g      -fsigned-char       -std=c99   -D_GNU_SOURCE
+#         warnings       debug   force signed chars             for strdup
 PREFIX ?= /usr/local
 PREFIX_PACKAGES ?= /usr
 INSTALLDIR ?= $(PREFIX)/bin

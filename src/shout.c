@@ -49,7 +49,7 @@ for a in {0..31}; do echo "$a"; b="`printf \"%x\" $a`"; shout --uni --showall "`
 //-> trailing \n of argv string argument are lost. this seems to be a limitation of getopt (?)
 */
 
-static double version=0.99;
+static double version=0.991;
 
 #define black 40
 #define lgray 47
@@ -119,7 +119,6 @@ void print_version();
 void setup();
 void clear_inbuff();
 int process();
-
 
 //----------------------------------------------
 int main(int argc, char **argv)
@@ -276,7 +275,7 @@ int main(int argc, char **argv)
 				break;
 			default:
 				break;
-		 } //end switch op
+		} //end switch op
 	}//end while(1)
 
 
@@ -386,7 +385,7 @@ int main(int argc, char **argv)
 	clear_inbuff();
 
 	char c=-1;
-		
+
 	int index_inarg=0;
 	int index_inbuff=0;
 
@@ -700,24 +699,23 @@ int process()
 
 	size_t bytes=strlen(inbuff);
 
-	int inchars=u8_strlen(inbuff);
+	uint32_t inchars=u8_strlen(inbuff);
 
 	if(options.debug==1)
 	{
 		fprintf(stderr,"input string length (bytes) %zu (characters) %d\n",bytes,inchars);
 	}
 
-	int finished=0;
+	uint32_t finished=0;
+	uint32_t non_printable=0;
 
-	int byte_pos_start=0;
-	int byte_pos=0;
-	int byte_ahead=0;
+	uint32_t byte_pos_start=0;
+	uint32_t byte_pos=0;
 
-	int non_printable=0;
+	uint32_t byte_ahead=0;
+	uint32_t ucp=0;
 
-	u_int32_t ucp=0;
-
-	int char_parts_printed_so_far=0;
+	uint32_t char_parts_printed_so_far=0;
 
 	while(finished==0)
 	{
@@ -745,7 +743,6 @@ int process()
 					int w=0;
 					for(w=0;w<options.indent;w++)
 					{
-						/////////
 						//bg_char
 						print_pixels("#");
 					}
@@ -791,7 +788,7 @@ int process()
 				}
 
 				//if ascii control char, print dependant on options
-				if((0<=ucp && ucp<32) || (127<=ucp && ucp<160) )
+				if(ucp<32 || (127<=ucp && ucp<160) )
 				{
 					//will handle as non_printable
 					if(options.display_all==0)
@@ -898,7 +895,6 @@ int process()
 						int w=0;
 						for(w=0;w<diff;w++)
 						{
-							/////////
 							//bg_char
 							print_pixels("#");
 						}
@@ -926,7 +922,7 @@ int process()
 						if(options.debug==1)
 						{
 							char uchar[5]={'\0','\0','\0','\0','\0'};
-							u8_wc_toutf8(uchar, (u_int32_t)ucp);
+							u8_wc_toutf8(uchar, ucp);
 							fprintf(stderr,"byte position %d to %d (%d) in input string: ",byte_pos,byte_ahead,byte_ahead-byte_pos);
 							fprintf(stderr,"unicode: %d (dec) U+%04X (hex) '%s'\n",ucp,ucp,uchar);
 						}
@@ -951,7 +947,6 @@ int process()
 				int w=0;
 				for(w=0;w<diff;w++)
 				{
-					///////
 					//bg_char
 					print_pixels("#");
 				}
@@ -1095,16 +1090,16 @@ void print_help()
 
 	printf("Examples:\n\n");
 
-	printf("  shout 1\n"); 
-	printf("  shout \"`hostname`\"\n"); 
+	printf("  shout 1\n");
+	printf("  shout \"`hostname`\"\n");
 	printf("  shout --eval --showall \"123\\n\\tabc\"\n");
 	printf("  shout --eval \"\\/\\R1\\G2\\B3\\|1\\/2\\|3\\_\\R1\\_\\G\\R2\\_\\B3\"\n");
-	printf("  shout '\\'\n"); 
-	printf("  shout '\\--foo'\n"); 
-	printf("  echo a | shout -\n"); 
-	printf("  cat /etc/*release* | shout --nowrap -\n"); 
-	printf("  shout --plain --left 4 --fill \"abc\"\n"); 
-	printf("  shout --uni --fontinfo\n\n"); 
+	printf("  shout '\\'\n");
+	printf("  shout '\\--foo'\n");
+	printf("  echo a | shout -\n");
+	printf("  cat /etc/*release* | shout --nowrap -\n");
+	printf("  shout --plain --left 4 --fill \"abc\"\n");
+	printf("  shout --uni --fontinfo\n\n");
 
 	printf("To use any unicode character in the terminal, press ctrl+shift+u,\n");
 	printf("then enter the code in hex, i.e. ctrl+shift+u ab12 (enter)\n");
